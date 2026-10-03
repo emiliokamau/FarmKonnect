@@ -10,16 +10,29 @@
   <div class="auth-wrap">
     <div class="auth-card">
       <h2>Enter your OTP</h2>
-      <p class="muted">A 6-digit code has been sent to your phone.</p>
-      <p class="muted" id="devHint"></p>
-      <form id="verifyForm" class="form">
-        <label>Phone Number<input id="phone" name="phone" required></label>
-        <label>6-digit OTP<input name="otp" maxlength="6" minlength="6" required></label>
-        <button class="btn-primary">Verify & Login</button>
+      <p class="muted">
+        We sent a 6-digit code to <strong id="targetPhone">your phone</strong>.
+        It expires in 10 minutes.
+      </p>
+
+      <form id="verifyForm" class="form" novalidate>
+        <input type="hidden" name="phone" id="phone">
+        <label>
+          6-digit OTP
+          <input name="otp" maxlength="6" minlength="6" inputmode="numeric"
+                 pattern="[0-9]{6}" required autocomplete="one-time-code">
+        </label>
+        <button class="btn-primary" type="submit">Verify &amp; Login</button>
         <p id="formMsg" class="form-msg"></p>
       </form>
+
+      <p class="auth-alt">
+        Didn't get it? <a href="#" id="resendOtp">Resend OTP</a>
+        · <a href="login.html">Back to login</a>
+      </p>
     </div>
   </div>
+
   <script src="js/api.js"></script>
   <script src="js/auth.js"></script>
 </body>

@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Complete Your Farmer Profile · FarmKonnect</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body data-page="farmer-profile">
+  <div class="auth-wrap">
+    <div class="auth-card" style="max-width:640px;">
+      <h2>Complete Your Farmer Profile</h2>
+      <p class="muted">
+        This information personalises your FarmKonnect experience. You can update
+        it any time from your dashboard.
+      </p>
+
+      <form id="profileForm" class="form">
+        <label>Full Name<input name="full_name" required></label>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;">
+          <label>National ID<input name="national_id"></label>
+          <label>Phone<input name="phone_display" disabled></label>
+        </div>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;">
+          <label>Gender
+            <select name="gender">
+              <option value="">—</option>
+              <option value="M">Male</option>
+              <option value="F">Female</option>
+              <option value="O">Other</option>
+            </select>
+          </label>
+          <label>Date of Birth<input type="date" name="date_of_birth"></label>
+        </div>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;">
+          <label>County<input name="county"></label>
+          <label>Sub-County<input name="sub_county"></label>
+        </div>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;">
+          <label>Ward<input name="ward"></label>
+          <label>Village<input name="village"></label>
+        </div>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;">
+          <label>GPS Latitude<input name="gps_latitude" placeholder="-1.2345"></label>
+          <label>GPS Longitude<input name="gps_longitude" placeholder="36.7890"></label>
+        </div>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;">
+          <label>Preferred Language
+            <select name="preferred_language">
+              <option value="en">English</option>
+              <option value="sw">Kiswahili</option>
+              <option value="ki">Kikuyu</option>
+              <option value="lu">Luo</option>
+              <option value="ka">Kamba</option>
+              <option value="luy">Luhya</option>
+            </select>
+          </label>
+          <label>Farmer Group / Cooperative<input name="farmer_group"></label>
+        </div>
+
+        <button class="btn-primary" type="submit">Save &amp; Continue</button>
+        <p id="formMsg" class="form-msg"></p>
+      </form>
+    </div>
+  </div>
+
+  <script src="js/api.js"></script>
+  <script src="js/farmer-profile.js"></script>
+</body>
+</html>

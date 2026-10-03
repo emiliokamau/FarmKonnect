@@ -22,26 +22,39 @@
         <div class="nav-group open">
           <div class="nav-group-title">Farm Management</div>
           <div class="nav-group-items">
-            <a href="#" data-section="fields">My Fields</a>
-            <a href="#" data-section="tasks">Tasks</a>
-            <a href="#" data-section="equipment">Equipment</a>
-            <a href="#" data-section="reports">Reports</a>
-            <a href="#" data-section="workers">Workers</a>
+            <a href="#" data-section="farms">Farms</a>
+            <a href="#" data-section="crops">Crop Records</a>
+            <a href="#" data-section="plantings">Planting Activities</a>
+            <a href="#" data-section="inputs">Farm Inputs</a>
+            <a href="#" data-section="diseases">Disease Reports</a>
+            <a href="#" data-section="harvests">Harvests</a>
+            <a href="#" data-section="inventory">Inventory</a>
+            <a href="#" data-section="weather">Weather Log</a>
+            <a href="#" data-section="visits">Extension Visits</a>
+            <a href="#" data-section="finance">Financial Records</a>
+          </div>
+        </div>
+
+        <div class="nav-group open">
+          <div class="nav-group-title">Point of Sale</div>
+          <div class="nav-group-items">
+            <a href="#" data-section="sales">Sales</a>
+            <a href="#" data-section="purchases">Purchases</a>
           </div>
         </div>
 
         <div class="nav-group">
           <div class="nav-group-title">Modules</div>
           <div class="nav-group-items">
-            <a href="pos.html">Point of Sale</a>
+            <a href="pos.html">Full POS</a>
             <a href="farmer-portal.html">Farmer Portal</a>
-            <a href="#" data-section="advisories">Advisories</a>
           </div>
         </div>
 
         <div class="nav-group">
           <div class="nav-group-title">Account</div>
           <div class="nav-group-items">
+            <a href="farmer-profile.html">My Profile</a>
             <a href="#" data-logout>Logout</a>
           </div>
         </div>
@@ -58,44 +71,27 @@
         <div class="stat-grid" id="overviewStats"></div>
         <div class="card">
           <h3>Quick Links</h3>
-          <p>Use the sidebar to manage fields, tasks, workers, equipment and reports. Visit the POS for sales operations or the Farmer Portal for market insights.</p>
+          <p>Use the sidebar to manage your farms, crops, inputs, harvests, finances and more. The POS module ties sales and purchases directly into your farm records.</p>
         </div>
       </section>
 
-      <section id="sec-fields" class="content-section">
-        <button class="btn-primary mb-1" onclick="addFarmRow('fields')">+ Add Field</button>
-        <div id="fieldsTable"></div>
-      </section>
-
-      <section id="sec-tasks" class="content-section">
-        <button class="btn-primary mb-1" onclick="addFarmRow('tasks')">+ Add Task</button>
-        <div id="tasksTable"></div>
-      </section>
-
-      <section id="sec-equipment" class="content-section">
-        <button class="btn-primary mb-1" onclick="addFarmRow('equipment')">+ Add Equipment</button>
-        <div id="equipmentTable"></div>
-      </section>
-
-      <section id="sec-reports" class="content-section">
-        <button class="btn-primary mb-1" onclick="addFarmRow('reports')">+ Add Report</button>
-        <div id="reportsTable"></div>
-      </section>
-
-      <section id="sec-workers" class="content-section">
-        <button class="btn-primary mb-1" onclick="addFarmRow('workers')">+ Add Worker</button>
-        <div id="workersTable"></div>
-      </section>
-
-      <section id="sec-advisories" class="content-section">
-        <h3>Advisory Requests</h3>
-        <div id="advisoriesList" class="grid"></div>
-      </section>
+      <!-- Sections rendered dynamically by dashboard.js -->
+      <section id="sec-farms" class="content-section"></section>
+      <section id="sec-crops" class="content-section"></section>
+      <section id="sec-plantings" class="content-section"></section>
+      <section id="sec-inputs" class="content-section"></section>
+      <section id="sec-diseases" class="content-section"></section>
+      <section id="sec-harvests" class="content-section"></section>
+      <section id="sec-inventory" class="content-section"></section>
+      <section id="sec-weather" class="content-section"></section>
+      <section id="sec-visits" class="content-section"></section>
+      <section id="sec-finance" class="content-section"></section>
+      <section id="sec-sales" class="content-section"></section>
+      <section id="sec-purchases" class="content-section"></section>
     </main>
   </div>
 
   <script src="js/api.js"></script>
-  <script src="js/auth.js"></script>
   <script src="js/dashboard.js"></script>
 </body>
 </html>

@@ -1,11 +1,42 @@
-/* Auth page controllers: register, login, otp */
+/* ------------------------------------------------------------------
+   FarmKonnect auth pages controller
+   Handles: register.html, login.html, verify-otp.html
+------------------------------------------------------------------ */
+
+/* ------------------------- helpers ------------------------- */
+
+function formatErr(err) {
+  if (!err) return "Something went wrong";
+  if (err.data) {
+    const d = err.data;
+    if (typeof d === "string") return d;
+    if (d.detail) return d.detail;
+    return Object.entries(d)
+      .map(([k, v]) => `${k}: ${Array.isArray(v) ? v.join(", ") : v}`)
+      .join(" | ");
+  }
+  return err.message || "Something went wrong";
+}
+
+function guardGuest() {
+  if (window.isLoggedIn && window.isLoggedIn()) {
+    window.location.href = "dashboard.html";
+  }
+}
+
+function setMsg(el, text, kind = "") {
+  if (!el) return;
+  el.textContent = text;
+  el.className = `form-msg ${kind}`;
+}
+
+/* ------------------------- register ------------------------- */
 
 async function handleRegister(e) {
   e.preventDefault();
   const form = e.target;
   const msg = document.getElementById("formMsg");
-  msg.textContent = "";
-  msg.className = "form-msg";
+  setMsg(msg, "");
 
   const payload = {
     name: form.name.value.trim(),
@@ -15,105 +46,164 @@ async function handleRegister(e) {
     confirm_password: form.confirm_password.value,
   };
 
+  if (payload.password !== payload.confirm_password) {
+    return setMsg(msg, "Passwords do not match.", "error");
+  }
+
   try {
-    const res = await API.register(payload);
-    msg.className = "form-msg success";
-    msg.textContent = "Registration successful! Redirecting to OTP verification...";
-    sessionStorage.setItem("pending_phone", payload.phone);
-    if (res.otp_debug) sessionStorage.setItem("dev_otp", res.otp_debug);
-    setTimeout(() => (window.location.href = `verify-otp.html?phone=${encodeURIComponent(payload.phone)}`), 1000);
+    await window.API.register(payload);
+    setMsg(msg, "Registration successful! Redirecting to OTP…", "success");
+    sessionStorage.setItem("pending_identifier", payload.phone);
+    sessionStorage.setItem("new_user", "1");   // <-- mark this as a fresh registration
+
+    setTimeout(() => {
+      window.location.href =
+        `verify-otp.html?identifier=${encodeURIComponent(payload.phone)}`;
+    }, 900);
   } catch (err) {
-    msg.className = "form-msg error";
-    msg.textContent = formatErr(err);
+    setMsg(msg, formatErr(err), "error");
   }
 }
 
-async function handleRequestOtp(e) {
+/* ------------------------- login (phone/email + password) ------------------------- */
+
+async function handleLogin(e) {
   e.preventDefault();
+  const form = e.target;
   const msg = document.getElementById("formMsg");
-  const phone = e.target.phone.value.trim();
+  setMsg(msg, "Verifying…");
+
+  const ident    = form.phone.value.trim();      // may be phone OR email
+  const password = form.password.value;
+
+  if (!ident || !password) {
+    return setMsg(msg, "Phone/email and password are required.", "error");
+  }
+
   try {
-    const res = await API.requestOtp(phone);
-    msg.className = "form-msg success";
-    msg.textContent = "OTP sent. Check your phone.";
-    sessionStorage.setItem("pending_phone", phone);
-    if (res.otp_debug) sessionStorage.setItem("dev_otp", res.otp_debug);
-    setTimeout(() => (window.location.href = `verify-otp.html?phone=${encodeURIComponent(phone)}`), 800);
+    const res = await window.API.loginPassword({ phone: ident, password });
+
+    const identifier = res.identifier || ident;
+    sessionStorage.setItem("pending_identifier", identifier);
+
+    const channel = res.delivery?.channel;
+    const note =
+      channel === "sms"   ? "OTP sent by SMS." :
+      channel === "email" ? "OTP sent to your email." :
+                            "OTP sent.";
+
+    setMsg(msg, note + " Redirecting…", "success");
+
+    setTimeout(() => {
+      window.location.href =
+        `verify-otp.html?identifier=${encodeURIComponent(identifier)}`;
+    }, 700);
   } catch (err) {
-    msg.className = "form-msg error";
-    msg.textContent = formatErr(err);
+    setMsg(msg, formatErr(err), "error");
   }
 }
+
+/* ------------------------- verify otp ------------------------- */
 
 async function handleVerifyOtp(e) {
   e.preventDefault();
+  const form = e.target;
   const msg = document.getElementById("formMsg");
-  const params = new URLSearchParams(window.location.search);
-  const phone = e.target.phone.value.trim() || params.get("phone");
-  const otp = e.target.otp.value.trim();
+  setMsg(msg, "");
+
+  const identifier = form.phone.value.trim();
+  const otp        = form.otp.value.trim();
+
+  if (!/^\d{6}$/.test(otp)) {
+    return setMsg(msg, "Enter a 6-digit code.", "error");
+  }
 
   try {
-    const res = await API.verifyOtp(phone, otp);
-    setToken(res.token);
-    setUser(res.user);
-    window.location.href = "dashboard.html";
+    const res = await window.API.verifyOtp(identifier, otp);
+    window.setToken(res.token);
+    window.setUser(res.user);
+    sessionStorage.removeItem("pending_identifier");
+
+    const isNew = sessionStorage.getItem("new_user") === "1";
+    sessionStorage.removeItem("new_user");
+
+    // If profile not completed → go to profile setup
+    if (!res.profile_completed || isNew) {
+      window.location.href = "farmer-profile.html";
+    } else {
+      window.location.href = "dashboard.html";
+    }
   } catch (err) {
-    msg.className = "form-msg error";
-    msg.textContent = formatErr(err);
+    setMsg(msg, formatErr(err), "error");
+  }
+}
+/* ------------------------- resend otp ------------------------- */
+
+async function handleResendOtp(e) {
+  e.preventDefault();
+  const msg = document.getElementById("formMsg");
+  const ident =
+    document.getElementById("phone").value.trim() ||
+    sessionStorage.getItem("pending_identifier");
+
+  if (!ident) return setMsg(msg, "No identifier on file — start over.", "error");
+
+  setMsg(msg, "Resending…");
+  try {
+    await window.API.requestOtp(ident);
+    setMsg(msg, "New OTP sent.", "success");
+  } catch (err) {
+    setMsg(msg, formatErr(err), "error");
   }
 }
 
-function formatErr(err) {
-  if (!err || !err.data) return err.message || "Something went wrong";
-  const d = err.data;
-  if (typeof d === "string") return d;
-  if (d.detail) return d.detail;
-  return Object.entries(d).map(([k, v]) => `${k}: ${Array.isArray(v) ? v.join(", ") : v}`).join(" | ");
-}
-
-function guardAuth() {
-  if (!isLoggedIn()) window.location.href = "login.html";
-}
-function guardGuest() {
-  if (isLoggedIn()) window.location.href = "dashboard.html";
-}
+/* ------------------------- page bootstrapping ------------------------- */
 
 document.addEventListener("DOMContentLoaded", () => {
   const page = document.body.dataset.page;
+
+  /* ---- register.html ---- */
   if (page === "register") {
     guardGuest();
-    document.getElementById("registerForm").addEventListener("submit", handleRegister);
+    const form = document.getElementById("registerForm");
+    if (form) form.addEventListener("submit", handleRegister);
   }
+
+  /* ---- login.html ---- */
   if (page === "login") {
     guardGuest();
-    document.getElementById("otpForm").addEventListener("submit", handleRequestOtp);
-    const pwForm = document.getElementById("pwForm");
-    if (pwForm) pwForm.addEventListener("submit", async (e) => {
-      e.preventDefault();
-      const msg = document.getElementById("formMsg");
-      try {
-        const res = await API.loginPassword({
-          username: e.target.username.value.trim(),
-          password: e.target.password.value,
-        });
-        setToken(res.token); setUser(res.user);
-        window.location.href = "dashboard.html";
-      } catch (err) {
-        msg.className = "form-msg error";
-        msg.textContent = formatErr(err);
-      }
-    });
+    const form = document.getElementById("loginForm");
+    if (!form) {
+      console.error("loginForm not found in DOM");
+      return;
+    }
+    form.addEventListener("submit", handleLogin);
   }
+
+  /* ---- verify-otp.html ---- */
   if (page === "verify-otp") {
     guardGuest();
+
     const params = new URLSearchParams(window.location.search);
-    const phone = params.get("phone") || sessionStorage.getItem("pending_phone");
-    if (phone) document.getElementById("phone").value = phone;
-    const devOtp = sessionStorage.getItem("dev_otp");
-    if (devOtp) {
-      const hint = document.getElementById("devHint");
-      if (hint) hint.textContent = `DEV OTP: ${devOtp}`;
-    }
-    document.getElementById("verifyForm").addEventListener("submit", handleVerifyOtp);
+    const identifier =
+      params.get("identifier") ||
+      params.get("phone") ||
+      sessionStorage.getItem("pending_identifier") ||
+      "";
+
+    const phoneInput = document.getElementById("phone");
+    if (phoneInput) phoneInput.value = identifier;
+
+    const shown = document.getElementById("targetPhone");
+    if (shown && identifier) shown.textContent = identifier;
+
+    const form = document.getElementById("verifyForm");
+    if (form) form.addEventListener("submit", handleVerifyOtp);
+
+    const resend = document.getElementById("resendOtp");
+    if (resend) resend.addEventListener("click", handleResendOtp);
+
+    const otpInput = document.querySelector("input[name='otp']");
+    if (otpInput) otpInput.focus();
   }
 });

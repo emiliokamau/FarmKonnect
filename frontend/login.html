@@ -11,25 +11,23 @@
     <div class="auth-card">
       <h2>Login to FarmKonnect</h2>
 
-      <form id="otpForm" class="form">
-        <h3 style="font-size:1rem;color:#6b7280;">Login with Phone OTP</h3>
-        <label>Phone Number<input name="phone" required placeholder="+2547..."></label>
-        <button class="btn-primary">Send OTP</button>
+      <form id="loginForm" class="form" autocomplete="on" novalidate>
+        <label>
+          Phone Number
+          <input type="tel" name="phone" required placeholder="+254712345678" autocomplete="tel">
+        </label>
+        <label>
+          Password
+          <input type="password" name="password" required autocomplete="current-password">
+        </label>
+        <button class="btn-primary" type="submit">Send OTP</button>
+        <p id="formMsg" class="form-msg"></p>
       </form>
 
-      <hr style="margin:1.5rem 0;border:none;border-top:1px solid #e5e7eb;">
-
-      <form id="pwForm" class="form">
-        <h3 style="font-size:1rem;color:#6b7280;">Or login with password</h3>
-        <label>Username / Email<input name="username" required></label>
-        <label>Password<input type="password" name="password" required></label>
-        <button class="btn-outline">Login</button>
-      </form>
-
-      <p id="formMsg" class="form-msg"></p>
       <p class="auth-alt">No account? <a href="register.html">Register</a></p>
     </div>
   </div>
+
   <script src="js/api.js"></script>
   <script src="js/auth.js"></script>
 </body>

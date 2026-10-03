@@ -1,5 +1,6 @@
 from django.utils import timezone
-from django.contrib.auth import authenticate
+from django.views.decorators.csrf import csrf_exempt
+
 from rest_framework import viewsets, status, permissions
 from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.response import Response
@@ -9,52 +10,75 @@ from rest_framework.parsers import BaseParser
 from .models import (
     User, County, Commodity, MarketPrice, Event, AdvisoryRequest,
     Product, Listing, Order, DeviceToken,
+    FarmerProfile, Farm, CropRecord, PlantingActivity, FarmInput,
+    DiseaseReport, Harvest, InventoryItem, Sale, Purchase,
+    WeatherLog, ExtensionVisit, FarmFinance,
 )
 from .serializers import (
     UserSerializer, RegisterSerializer, OTPLoginSerializer,
     CountySerializer, CommoditySerializer, MarketPriceSerializer,
     EventSerializer, AdvisoryRequestSerializer,
     ProductSerializer, ListingSerializer, OrderSerializer, DeviceTokenSerializer,
+    FarmerProfileSerializer, FarmSerializer, CropRecordSerializer,
+    PlantingActivitySerializer, FarmInputSerializer, DiseaseReportSerializer,
+    HarvestSerializer, InventoryItemSerializer, SaleSerializer,
+    PurchaseSerializer, WeatherLogSerializer, ExtensionVisitSerializer,
+    FarmFinanceSerializer,
 )
 from .permissions import IsAdminOrReadOnly
-from .utils import generate_otp, otp_is_valid, send_sms
+from .utils import generate_otp, otp_is_valid, send_otp
 
 
 # ---------------- AUTH ----------------
 
+@csrf_exempt
 @api_view(["POST"])
 @permission_classes([permissions.AllowAny])
 def register_view(request):
     serializer = RegisterSerializer(data=request.data)
     serializer.is_valid(raise_exception=True)
     user, otp = serializer.save()
-    send_sms(user.phone, f"Your FarmKonnect OTP is {otp}")
+    delivery = send_otp(user, otp, purpose="registration")
     return Response({
-        "detail": "Registration successful. OTP sent to phone.",
+        "detail": "Registration successful. OTP sent.",
         "phone": user.phone,
-        "otp_debug": otp,  # remove in production
+        "email": user.email,
+        "delivery": {
+            "channel": delivery.get("channel"),
+            "delivered": delivery.get("delivered"),
+        },
+        "otp_debug": otp,
     }, status=status.HTTP_201_CREATED)
 
 
+@csrf_exempt
 @api_view(["POST"])
 @permission_classes([permissions.AllowAny])
 def request_otp_view(request):
-    """Send OTP to existing user's phone for login."""
-    phone = request.data.get("phone")
+    phone = request.data.get("phone") or request.data.get("email")
     if not phone:
-        return Response({"detail": "phone is required."}, status=400)
-    try:
-        user = User.objects.get(phone=phone)
-    except User.DoesNotExist:
-        return Response({"detail": "No account with that phone."}, status=404)
+        return Response({"detail": "phone or email is required."}, status=400)
+    user = (
+        User.objects.filter(phone=phone).first()
+        or User.objects.filter(email__iexact=phone).first()
+    )
+    if not user:
+        return Response({"detail": "No account found."}, status=404)
+
     otp = generate_otp()
     user.otp_code = otp
     user.otp_created_at = timezone.now()
     user.save(update_fields=["otp_code", "otp_created_at"])
-    send_sms(user.phone, f"Your FarmKonnect login OTP is {otp}")
-    return Response({"detail": "OTP sent.", "otp_debug": otp})
+
+    delivery = send_otp(user, otp, purpose="login")
+    return Response({
+        "detail": "OTP sent.",
+        "delivery": {"channel": delivery.get("channel"), "delivered": delivery.get("delivered")},
+        "otp_debug": otp,
+    })
 
 
+@csrf_exempt
 @api_view(["POST"])
 @permission_classes([permissions.AllowAny])
 def verify_otp_view(request):
@@ -62,37 +86,63 @@ def verify_otp_view(request):
     serializer.is_valid(raise_exception=True)
     phone = serializer.validated_data["phone"]
     otp = serializer.validated_data["otp"]
-    try:
-        user = User.objects.get(phone=phone)
-    except User.DoesNotExist:
-        return Response({"detail": "Invalid phone."}, status=404)
+
+    user = (
+        User.objects.filter(phone=phone).first()
+        or User.objects.filter(email__iexact=phone).first()
+    )
+    if not user:
+        return Response({"detail": "Invalid identifier."}, status=404)
     if not otp_is_valid(user, otp):
         return Response({"detail": "Invalid or expired OTP."}, status=400)
+
     user.is_phone_verified = True
     user.otp_code = None
     user.save(update_fields=["is_phone_verified", "otp_code"])
+
     token, _ = Token.objects.get_or_create(user=user)
     return Response({
         "token": token.key,
         "user": UserSerializer(user).data,
+        "profile_completed": user.profile_completed,
     })
 
 
+@csrf_exempt
 @api_view(["POST"])
 @permission_classes([permissions.AllowAny])
 def login_password_view(request):
-    """Optional: classic username/email + password login."""
-    ident = request.data.get("username") or request.data.get("email") or request.data.get("phone")
-    password = request.data.get("password")
+    ident = (request.data.get("phone") or request.data.get("email") or "").strip()
+    password = request.data.get("password") or ""
+
     if not ident or not password:
-        return Response({"detail": "credentials required."}, status=400)
-    user = User.objects.filter(email=ident).first() or User.objects.filter(username=ident).first() or User.objects.filter(phone=ident).first()
+        return Response({"detail": "Phone/email and password are required."}, status=400)
+
+    user = (
+        User.objects.filter(phone=ident).first()
+        or User.objects.filter(email__iexact=ident).first()
+        or User.objects.filter(username__iexact=ident).first()
+    )
     if not user or not user.check_password(password):
         return Response({"detail": "Invalid credentials."}, status=400)
-    token, _ = Token.objects.get_or_create(user=user)
-    return Response({"token": token.key, "user": UserSerializer(user).data})
+
+    otp = generate_otp()
+    user.otp_code = otp
+    user.otp_created_at = timezone.now()
+    user.save(update_fields=["otp_code", "otp_created_at"])
+
+    delivery = send_otp(user, otp, purpose="login")
+    identifier = user.phone or user.email
+
+    return Response({
+        "detail": "Credentials verified. OTP sent.",
+        "identifier": identifier,
+        "delivery": {"channel": delivery.get("channel"), "delivered": delivery.get("delivered")},
+        "otp_debug": otp,
+    })
 
 
+@csrf_exempt
 @api_view(["POST"])
 def logout_view(request):
     if request.user.is_authenticated:
@@ -103,6 +153,32 @@ def logout_view(request):
 @api_view(["GET"])
 def me_view(request):
     return Response(UserSerializer(request.user).data)
+
+
+# ---------------- FARMER PROFILE ----------------
+
+@csrf_exempt
+@api_view(["GET", "PUT", "PATCH"])
+def my_farmer_profile(request):
+    """Get or update the current user's farmer profile."""
+    profile, created = FarmerProfile.objects.get_or_create(
+        user=request.user,
+        defaults={"full_name": request.user.first_name or request.user.username},
+    )
+
+    if request.method == "GET":
+        return Response(FarmerProfileSerializer(profile).data)
+
+    serializer = FarmerProfileSerializer(profile, data=request.data, partial=True)
+    serializer.is_valid(raise_exception=True)
+    serializer.save()
+
+    # Mark profile complete
+    if not request.user.profile_completed:
+        request.user.profile_completed = True
+        request.user.save(update_fields=["profile_completed"])
+
+    return Response(serializer.data)
 
 
 # ---------------- VIEWSETS ----------------
@@ -133,16 +209,14 @@ class MarketPriceViewSet(viewsets.ModelViewSet):
 
     @action(detail=False, methods=["get"], permission_classes=[permissions.AllowAny])
     def trends(self, request):
-        """Simple trend aggregation per commodity."""
         commodity = request.query_params.get("commodity")
         qs = self.get_queryset()
         if commodity:
             qs = qs.filter(commodity_id=commodity)
-        data = [
+        return Response([
             {"date": p.date, "price": p.price, "commodity": p.commodity.name}
             for p in qs.order_by("date")[:200]
-        ]
-        return Response(data)
+        ])
 
 
 class EventViewSet(viewsets.ModelViewSet):
@@ -203,6 +277,141 @@ class DeviceTokenViewSet(viewsets.ModelViewSet):
         serializer.save(user=self.request.user)
 
 
+# ---------- FMS: all viewsets filter by the current farmer ----------
+
+class _FarmerScopedViewSet(viewsets.ModelViewSet):
+    """Base class: every object belongs to the current user's farmer profile."""
+    def _profile(self):
+        return FarmerProfile.objects.filter(user=self.request.user).first()
+
+    def get_queryset(self):
+        p = self._profile()
+        if not p:
+            return self.queryset.none()
+        return self.queryset.filter(farmer=p)
+
+    def perform_create(self, serializer):
+        p = self._profile()
+        if not p:
+            from rest_framework.exceptions import ValidationError
+            raise ValidationError("Complete your farmer profile first.")
+        serializer.save(farmer=p)
+
+
+class _ProfileLookupMixin:
+    """For models that reference FarmerProfile directly."""
+    def _profile(self):
+        return FarmerProfile.objects.filter(user=self.request.user).first()
+
+    def get_queryset(self):
+        p = self._profile()
+        if not p:
+            return self.queryset.none()
+        return self.queryset.filter(farmer=p)
+
+    def perform_create(self, serializer):
+        p = self._profile()
+        if not p:
+            from rest_framework.exceptions import ValidationError
+            raise ValidationError("Complete your farmer profile first.")
+        serializer.save(farmer=p)
+
+
+class FarmViewSet(_FarmerScopedViewSet):
+    queryset = Farm.objects.all().order_by("-created_at")
+    serializer_class = FarmSerializer
+
+
+class CropRecordViewSet(viewsets.ModelViewSet):
+    serializer_class = CropRecordSerializer
+
+    def get_queryset(self):
+        p = FarmerProfile.objects.filter(user=self.request.user).first()
+        if not p:
+            return CropRecord.objects.none()
+        return CropRecord.objects.filter(farm__farmer=p).order_by("-created_at")
+
+
+class PlantingActivityViewSet(viewsets.ModelViewSet):
+    serializer_class = PlantingActivitySerializer
+
+    def get_queryset(self):
+        p = FarmerProfile.objects.filter(user=self.request.user).first()
+        if not p:
+            return PlantingActivity.objects.none()
+        return PlantingActivity.objects.filter(farm__farmer=p).order_by("-date")
+
+
+class FarmInputViewSet(viewsets.ModelViewSet):
+    serializer_class = FarmInputSerializer
+
+    def get_queryset(self):
+        p = FarmerProfile.objects.filter(user=self.request.user).first()
+        if not p:
+            return FarmInput.objects.none()
+        return FarmInput.objects.filter(farm__farmer=p).order_by("-application_date")
+
+
+class DiseaseReportViewSet(viewsets.ModelViewSet):
+    serializer_class = DiseaseReportSerializer
+
+    def get_queryset(self):
+        p = FarmerProfile.objects.filter(user=self.request.user).first()
+        if not p:
+            return DiseaseReport.objects.none()
+        return DiseaseReport.objects.filter(farm__farmer=p).order_by("-date")
+
+
+class HarvestViewSet(viewsets.ModelViewSet):
+    serializer_class = HarvestSerializer
+
+    def get_queryset(self):
+        p = FarmerProfile.objects.filter(user=self.request.user).first()
+        if not p:
+            return Harvest.objects.none()
+        return Harvest.objects.filter(farm__farmer=p).order_by("-harvest_date")
+
+
+class InventoryItemViewSet(viewsets.ModelViewSet):
+    serializer_class = InventoryItemSerializer
+
+    def get_queryset(self):
+        p = FarmerProfile.objects.filter(user=self.request.user).first()
+        if not p:
+            return InventoryItem.objects.none()
+        return InventoryItem.objects.filter(farm__farmer=p)
+
+
+class SaleViewSet(_ProfileLookupMixin, viewsets.ModelViewSet):
+    queryset = Sale.objects.all().order_by("-date")
+    serializer_class = SaleSerializer
+
+
+class PurchaseViewSet(_ProfileLookupMixin, viewsets.ModelViewSet):
+    queryset = Purchase.objects.all().order_by("-purchase_date")
+    serializer_class = PurchaseSerializer
+
+
+class WeatherLogViewSet(viewsets.ModelViewSet):
+    serializer_class = WeatherLogSerializer
+
+    def get_queryset(self):
+        p = FarmerProfile.objects.filter(user=self.request.user).first()
+        if not p:
+            return WeatherLog.objects.none()
+        return WeatherLog.objects.filter(farm__farmer=p).order_by("-date")
+
+
+class ExtensionVisitViewSet(_ProfileLookupMixin, viewsets.ModelViewSet):
+    queryset = ExtensionVisit.objects.all().order_by("-date")
+    serializer_class = ExtensionVisitSerializer
+
+
+class FarmFinanceViewSet(_ProfileLookupMixin, viewsets.ModelViewSet):
+    queryset = FarmFinance.objects.all().order_by("-date")
+    serializer_class = FarmFinanceSerializer
+
+
 # ---------------- CSV PASS-THROUGH ----------------
 
 class PlainTextParser(BaseParser):
@@ -215,7 +424,6 @@ class PlainTextParser(BaseParser):
 @api_view(["GET"])
 @permission_classes([permissions.AllowAny])
 def prices_csv(request):
-    """Return market prices as CSV text."""
     import csv
     from io import StringIO
     buf = StringIO()
