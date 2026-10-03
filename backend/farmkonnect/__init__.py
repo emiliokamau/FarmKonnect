@@ -5,6 +5,6 @@ Ensures the Celery app is imported when Django starts so that ``celery -A farmko
 works out‑of‑the‑box.
 """
 
-from .celery import app as celery_app
+#from .celery import app as celery_app
 
 __all__ = ("celery_app",)

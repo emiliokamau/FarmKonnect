@@ -57,6 +57,8 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'farmkonnect.wsgi.application'
 
+AUTH_USER_MODEL = "backend.User"
+
 # Database – using SQLite for local development
 DATABASES = {
     'default': {
@@ -64,6 +66,19 @@ DATABASES = {
         'NAME': BASE_DIR / 'db.sqlite3',
     }
 }
+
+# Static files (CSS, JavaScript, images)
+# https://docs.djangoproject.com/en/stable/howto/static-files/
+
+STATIC_URL = "static/"
+
+# Where `collectstatic` copies files to for production.
+STATIC_ROOT = BASE_DIR / "staticfiles"
+
+# Extra directories to scan for static files outside of apps.
+STATICFILES_DIRS = [
+    BASE_DIR / "static",
+]
 
 # Password validation
 AUTH_PASSWORD_VALIDATORS = [

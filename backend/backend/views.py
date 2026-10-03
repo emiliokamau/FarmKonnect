@@ -15,7 +15,10 @@ from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated, BasePermission
 from django_filters.rest_framework import DjangoFilterBackend
 
-from .models import User, MarketPrice, Event, AdvisoryRequest, County, Commodity, Product, Listing, Order, DeviceToken
+from .models import (
+    User, MarketPrice, Event, AdvisoryRequest, County, 
+    Commodity, Product, Listing, Order, DeviceToken
+)
 from .serializers import (
     UserSerializer,
     CountySerializer,
@@ -28,6 +31,9 @@ from .serializers import (
     OrderSerializer,
     DeviceTokenSerializer,
 )
+from .services import generate_advisory, get_price_trend
+from .csv_loader import load_prices_from_csv
+
 
 # Marketplace viewsets
 class ProductViewSet(viewsets.ModelViewSet):
@@ -37,12 +43,14 @@ class ProductViewSet(viewsets.ModelViewSet):
     filter_backends = [DjangoFilterBackend]
     filterset_fields = ["vendor", "price"]
 
+
 class ListingViewSet(viewsets.ModelViewSet):
     queryset = Listing.objects.filter(is_active=True)
     serializer_class = ListingSerializer
     permission_classes = [IsAuthenticated]
     filter_backends = [DjangoFilterBackend]
     filterset_fields = ["product", "unit_price", "is_active"]
+
 
 class OrderViewSet(viewsets.ModelViewSet):
     queryset = Order.objects.all()
@@ -51,23 +59,13 @@ class OrderViewSet(viewsets.ModelViewSet):
     filter_backends = [DjangoFilterBackend]
     filterset_fields = ["buyer", "status"]
 
+
 class DeviceTokenViewSet(viewsets.ModelViewSet):
     queryset = DeviceToken.objects.all()
     serializer_class = DeviceTokenSerializer
     permission_classes = [IsAuthenticated]
     filter_backends = [DjangoFilterBackend]
     filterset_fields = ["user", "platform"]
-
-
-    UserSerializer,
-    CountySerializer,
-    CommoditySerializer,
-    MarketPriceSerializer,
-    EventSerializer,
-    AdvisoryRequestSerializer,
-)
-from .services import generate_advisory, get_price_trend
-from .csv_loader import load_prices_from_csv
 
 
 class RolePermission(BasePermission):
@@ -113,7 +111,11 @@ class MarketPriceViewSet(viewsets.ReadOnlyModelViewSet):
     serializer_class = MarketPriceSerializer
     permission_classes = [IsAuthenticated]
     filter_backends = [DjangoFilterBackend]
-    filterset_fields = {"commodity__code": ["exact"], "county__name": ["exact"], "date": ["gte", "lte"]}
+    filterset_fields = {
+        "commodity__code": ["exact"],
+        "county__name": ["exact"],
+        "date": ["gte", "lte"]
+    }
 
     @action(detail=False, methods=["get"], url_path="trend")
     def trend(self, request):
@@ -128,7 +130,10 @@ class MarketPriceViewSet(viewsets.ReadOnlyModelViewSet):
         county = request.query_params.get("county")
         days = int(request.query_params.get("days", 30))
         if not commodity or not county:
-            return Response({"detail": "commodity and county are required"}, status=status.HTTP_400_BAD_REQUEST)
+            return Response(
+                {"detail": "commodity and county are required"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
         data = get_price_trend(commodity, county, days=days)
         return Response(data)
 
@@ -138,7 +143,11 @@ class EventViewSet(viewsets.ReadOnlyModelViewSet):
     serializer_class = EventSerializer
     permission_classes = [IsAuthenticated]
     filter_backends = [DjangoFilterBackend]
-    filterset_fields = {"category": ["exact"], "counties__name": ["exact"], "start_date": ["gte", "lte"]}
+    filterset_fields = {
+        "category": ["exact"],
+        "counties__name": ["exact"],
+        "start_date": ["gte", "lte"]
+    }
 
 
 class AdvisoryRequestViewSet(viewsets.ModelViewSet):
@@ -156,17 +165,26 @@ class AdvisoryRequestViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         serializer.save(farmer=self.request.user)
 
-    @action(detail=True, methods=["post"], permission_classes=[IsAuthenticated, RolePermission])
+    @action(
+        detail=True,
+        methods=["post"],
+        permission_classes=[IsAuthenticated, RolePermission]
+    )
     def run(self, request, pk=None):
         """Trigger AI advisory generation for the given request.
         """
         advisory = self.get_object()
         if advisory.recommendation:
-            return Response({"detail": "Advisory already processed."}, status=status.HTTP_400_BAD_REQUEST)
+            return Response(
+                {"detail": "Advisory already processed."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
         generate_advisory(advisory.id)
-        return Response({"detail": "Advisory generated."}, status=status.HTTP_200_OK)
+        return Response(
+            {"detail": "Advisory generated."},
+            status=status.HTTP_200_OK
+        )
 
-# End of views.py
 
 class MarketPriceCsvViewSet(viewsets.ViewSet):
     """Read market price data from the latest CSV produced by the ETL.
@@ -183,7 +201,10 @@ class MarketPriceCsvViewSet(viewsets.ViewSet):
         county = request.query_params.get("county")
         data = load_prices_from_csv(commodity=commodity, county=county)
         if not data:
-            return Response({"detail": "No CSV data available"}, status=status.HTTP_404_NOT_FOUND)
+            return Response(
+                {"detail": "No CSV data available"},
+                status=status.HTTP_404_NOT_FOUND
+            )
         # Use serializer for consistent field names
         serializer = MarketPriceSerializer(data=data, many=True)
         serializer.is_valid(raise_exception=True)
