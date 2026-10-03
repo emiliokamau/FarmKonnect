@@ -1,31 +1,14 @@
-"""API URL configuration for the ``backend`` app.
-
-Registers every viewset with a DRF router and exposes the resulting
-router URLs under the app namespace. The project-level URLconf simply
-does ``path("api/", include("backend.urls"))``.
-"""
-
+from django.urls import path, include
 from rest_framework import routers
 
 from .views import (
-    # Marketplace
-    ProductViewSet,
-    ListingViewSet,
-    OrderViewSet,
-    DeviceTokenViewSet,
-    # Reference data
-    UserViewSet,
-    CountyViewSet,
-    CommodityViewSet,
-    MarketPriceViewSet,
-    EventViewSet,
-    AdvisoryRequestViewSet,
-    # CSV pass-through
-    MarketPriceCsvViewSet,
+    ProductViewSet, ListingViewSet, OrderViewSet, DeviceTokenViewSet,
+    UserViewSet, CountyViewSet, CommodityViewSet, MarketPriceViewSet,
+    EventViewSet, AdvisoryRequestViewSet, MarketPriceCsvViewSet,
+    register_view, request_otp_view, verify_otp_view,
+    login_password_view, logout_view, me_view,
 )
 
-
-# A single DefaultRouter instance for this app.
 router = routers.DefaultRouter()
 
 # Reference data
@@ -36,14 +19,23 @@ router.register(r"prices", MarketPriceViewSet, basename="marketprice")
 router.register(r"events", EventViewSet, basename="event")
 router.register(r"advisories", AdvisoryRequestViewSet, basename="advisoryrequest")
 
-# Marketplace
+# Marketplace / POS
 router.register(r"products", ProductViewSet, basename="product")
 router.register(r"listings", ListingViewSet, basename="listing")
 router.register(r"orders", OrderViewSet, basename="order")
 router.register(r"device_tokens", DeviceTokenViewSet, basename="devicetoken")
 
-# CSV pass-through (plain ViewSet; still registerable with a router)
+# CSV
 router.register(r"prices_csv", MarketPriceCsvViewSet, basename="prices_csv")
 
 
-urlpatterns = router.urls
+auth_patterns = [
+    path("auth/register/", register_view, name="auth-register"),
+    path("auth/request-otp/", request_otp_view, name="auth-request-otp"),
+    path("auth/verify-otp/", verify_otp_view, name="auth-verify-otp"),
+    path("auth/login/", login_password_view, name="auth-login"),
+    path("auth/logout/", logout_view, name="auth-logout"),
+    path("auth/me/", me_view, name="auth-me"),
+]
+
+urlpatterns = auth_patterns + router.urls

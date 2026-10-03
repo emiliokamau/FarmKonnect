@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Dashboard · FarmKonnect</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body data-page="dashboard">
+  <div class="app-shell">
+    <aside class="sidebar">
+      <a href="index.html" class="logo">🌾 FarmKonnect</a>
+
+      <nav>
+        <div class="nav-group open">
+          <div class="nav-group-title">Dashboard</div>
+          <div class="nav-group-items">
+            <a href="#" data-section="overview" class="active">Overview</a>
+          </div>
+        </div>
+
+        <div class="nav-group open">
+          <div class="nav-group-title">Farm Management</div>
+          <div class="nav-group-items">
+            <a href="#" data-section="fields">My Fields</a>
+            <a href="#" data-section="tasks">Tasks</a>
+            <a href="#" data-section="equipment">Equipment</a>
+            <a href="#" data-section="reports">Reports</a>
+            <a href="#" data-section="workers">Workers</a>
+          </div>
+        </div>
+
+        <div class="nav-group">
+          <div class="nav-group-title">Modules</div>
+          <div class="nav-group-items">
+            <a href="pos.html">Point of Sale</a>
+            <a href="farmer-portal.html">Farmer Portal</a>
+            <a href="#" data-section="advisories">Advisories</a>
+          </div>
+        </div>
+
+        <div class="nav-group">
+          <div class="nav-group-title">Account</div>
+          <div class="nav-group-items">
+            <a href="#" data-logout>Logout</a>
+          </div>
+        </div>
+      </nav>
+    </aside>
+
+    <main class="main-area">
+      <div class="topbar">
+        <h1 id="pageTitle">Overview</h1>
+        <div>Welcome, <strong id="welcomeName">Farmer</strong></div>
+      </div>
+
+      <section id="sec-overview" class="content-section active">
+        <div class="stat-grid" id="overviewStats"></div>
+        <div class="card">
+          <h3>Quick Links</h3>
+          <p>Use the sidebar to manage fields, tasks, workers, equipment and reports. Visit the POS for sales operations or the Farmer Portal for market insights.</p>
+        </div>
+      </section>
+
+      <section id="sec-fields" class="content-section">
+        <button class="btn-primary mb-1" onclick="addFarmRow('fields')">+ Add Field</button>
+        <div id="fieldsTable"></div>
+      </section>
+
+      <section id="sec-tasks" class="content-section">
+        <button class="btn-primary mb-1" onclick="addFarmRow('tasks')">+ Add Task</button>
+        <div id="tasksTable"></div>
+      </section>
+
+      <section id="sec-equipment" class="content-section">
+        <button class="btn-primary mb-1" onclick="addFarmRow('equipment')">+ Add Equipment</button>
+        <div id="equipmentTable"></div>
+      </section>
+
+      <section id="sec-reports" class="content-section">
+        <button class="btn-primary mb-1" onclick="addFarmRow('reports')">+ Add Report</button>
+        <div id="reportsTable"></div>
+      </section>
+
+      <section id="sec-workers" class="content-section">
+        <button class="btn-primary mb-1" onclick="addFarmRow('workers')">+ Add Worker</button>
+        <div id="workersTable"></div>
+      </section>
+
+      <section id="sec-advisories" class="content-section">
+        <h3>Advisory Requests</h3>
+        <div id="advisoriesList" class="grid"></div>
+      </section>
+    </main>
+  </div>
+
+  <script src="js/api.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/dashboard.js"></script>
+</body>
+</html>

@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Verify OTP · FarmKonnect</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body data-page="verify-otp">
+  <div class="auth-wrap">
+    <div class="auth-card">
+      <h2>Enter your OTP</h2>
+      <p class="muted">A 6-digit code has been sent to your phone.</p>
+      <p class="muted" id="devHint"></p>
+      <form id="verifyForm" class="form">
+        <label>Phone Number<input id="phone" name="phone" required></label>
+        <label>6-digit OTP<input name="otp" maxlength="6" minlength="6" required></label>
+        <button class="btn-primary">Verify & Login</button>
+        <p id="formMsg" class="form-msg"></p>
+      </form>
+    </div>
+  </div>
+  <script src="js/api.js"></script>
+  <script src="js/auth.js"></script>
+</body>
+</html>

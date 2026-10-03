@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>POS · FarmKonnect</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body data-page="pos">
+  <div class="app-shell">
+    <aside class="sidebar">
+      <a href="dashboard.html" class="logo">🌾 FarmKonnect POS</a>
+      <nav>
+        <div class="nav-group open">
+          <div class="nav-group-title">Point of Sale</div>
+          <div class="nav-group-items">
+            <a href="#" data-pos-section="dashboard" class="active">Dashboard</a>
+            <a href="#" data-pos-section="sales">Sales</a>
+            <a href="#" data-pos-section="products">Products</a>
+            <a href="#" data-pos-section="customers">Customers</a>
+            <a href="#" data-pos-section="reports">Reports</a>
+            <a href="#" data-pos-section="settings">Settings</a>
+          </div>
+        </div>
+        <div class="nav-group">
+          <div class="nav-group-title">Account</div>
+          <div class="nav-group-items">
+            <a href="dashboard.html">Back to Dashboard</a>
+            <a href="#" data-logout>Logout</a>
+          </div>
+        </div>
+      </nav>
+    </aside>
+
+    <main class="main-area">
+      <div class="topbar">
+        <h1>Point of Sale</h1>
+        <div>Signed in as <strong id="posUser">User</strong></div>
+      </div>
+
+      <section id="pos-dashboard" class="content-section active">
+        <div class="stat-grid" id="posStats"></div>
+      </section>
+
+      <section id="pos-sales" class="content-section">
+        <h3>Sales / Orders</h3>
+        <div id="salesTable"></div>
+      </section>
+
+      <section id="pos-products" class="content-section">
+        <h3>Products</h3>
+        <div id="productsTable"></div>
+      </section>
+
+      <section id="pos-customers" class="content-section">
+        <h3>Customers</h3>
+        <div id="customersTable"></div>
+      </section>
+
+      <section id="pos-reports" class="content-section">
+        <h3>Reports</h3>
+        <div class="stat-grid" id="reportsArea"></div>
+      </section>
+
+      <section id="pos-settings" class="content-section">
+        <h3>Settings</h3>
+        <div id="settingsArea"></div>
+      </section>
+    </main>
+  </div>
+
+  <script src="js/api.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/pos.js"></script>
+</body>
+</html>

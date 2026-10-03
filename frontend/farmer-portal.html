@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Farmer Portal · FarmKonnect</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body data-page="farmer">
+  <nav class="navbar">
+    <a href="dashboard.html" class="logo">🌾 FarmKonnect</a>
+    <div class="nav-links">
+      <a href="dashboard.html">Dashboard</a>
+      <a href="pos.html">POS</a>
+      <a href="#" data-logout onclick="logout(); return false;">Logout</a>
+    </div>
+  </nav>
+
+  <main class="section" style="max-width:1200px;">
+    <h1 style="color:var(--green-dark);">Farmer Portal</h1>
+    <p class="muted">Market trends, disease detection, best practices, subsidies, events and more.</p>
+
+    <div class="tab-bar">
+      <button data-portal-tab="trends" class="active">📊 Market Trends</button>
+      <button data-portal-tab="disease">🦠 Disease Detection</button>
+      <button data-portal-tab="practices">🌱 Best Practices</button>
+      <button data-portal-tab="officers">👨‍🌾 Officers</button>
+      <button data-portal-tab="events">🎓 Training & Grants</button>
+      <button data-portal-tab="subsidy">🌾 Fertilizer Subsidy</button>
+      <button data-portal-tab="compare">⚖ Price Comparison</button>
+    </div>
+
+    <div id="tab-trends" class="portal-panel active"><div id="trendsArea"></div></div>
+    <div id="tab-disease" class="portal-panel"><div id="diseaseArea"></div></div>
+    <div id="tab-practices" class="portal-panel"><div id="practicesArea" class="grid"></div></div>
+    <div id="tab-officers" class="portal-panel"><div id="officersArea" class="grid"></div></div>
+    <div id="tab-events" class="portal-panel"><div id="eventsArea" class="grid"></div></div>
+    <div id="tab-subsidy" class="portal-panel"><div id="subsidyArea" class="grid"></div></div>
+    <div id="tab-compare" class="portal-panel"><div id="compareArea" class="grid"></div></div>
+  </main>
+
+  <script src="js/api.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/farmer-portal.js"></script>
+</body>
+</html>
