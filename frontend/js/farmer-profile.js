@@ -32,7 +32,12 @@ document.addEventListener("DOMContentLoaded", async () => {
     const data = {};
     for (const el of form.elements) {
       if (el.name && el.name !== "phone_display") {
-        data[el.name] = el.value || null;
+        const val = (el.value || "").trim();
+        if (["gps_latitude", "gps_longitude", "date_of_birth"].includes(el.name)) {
+          data[el.name] = val || null;
+        } else {
+          data[el.name] = val;
+        }
       }
     }
 

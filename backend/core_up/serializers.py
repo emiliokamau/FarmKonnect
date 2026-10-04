@@ -130,11 +130,33 @@ class DeviceTokenSerializer(serializers.ModelSerializer):
 class FarmerProfileSerializer(serializers.ModelSerializer):
     user_email = serializers.EmailField(source="user.email", read_only=True)
     user_phone = serializers.CharField(source="user.phone", read_only=True)
+    national_id = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+    gender = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+    county = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+    sub_county = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+    ward = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+    village = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+    farmer_group = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+    date_of_birth = serializers.DateField(required=False, allow_null=True)
+    gps_latitude = serializers.DecimalField(max_digits=10, decimal_places=7, required=False, allow_null=True)
+    gps_longitude = serializers.DecimalField(max_digits=10, decimal_places=7, required=False, allow_null=True)
+    preferred_language = serializers.CharField(required=False, allow_blank=True, default="en")
 
     class Meta:
         model = FarmerProfile
         fields = "__all__"
         read_only_fields = ["user", "farmer_id", "registration_date"]
+
+    def to_internal_value(self, data):
+        if isinstance(data, dict):
+            data = data.copy()
+            for key in ["national_id", "gender", "county", "sub_county", "ward", "village", "farmer_group"]:
+                if key in data and data[key] is None:
+                    data[key] = ""
+            for key in ["date_of_birth", "gps_latitude", "gps_longitude"]:
+                if key in data and data[key] == "":
+                    data[key] = None
+        return super().to_internal_value(data)
 
 
 class FarmSerializer(serializers.ModelSerializer):
