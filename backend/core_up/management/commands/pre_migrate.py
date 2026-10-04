@@ -18,37 +18,69 @@ class Command(BaseCommand):
                     self.stdout.write(self.style.SUCCESS("[pre_migrate] Clean database. Ready for migrations."))
                     return
 
-                cursor.execute("SELECT app, name FROM django_migrations WHERE app IN ('admin', 'core_up', 'backend');")
-                records = set(cursor.fetchall())
+                cursor.execute(
+                    """
+                    SELECT app, name, applied
+                    FROM django_migrations
+                    WHERE app IN ('admin', 'core_up', 'backend')
+                    ORDER BY applied ASC
+                    """
+                )
+                rows = cursor.fetchall()
 
-                has_admin = ("admin", "0001_initial") in records
-                has_core = ("core_up", "0001_initial") in records or ("backend", "0001_initial") in records
+                admin_applied = None
+                core_applied = None
 
-                if has_admin and not has_core:
-                    self.stdout.write(self.style.WARNING(
-                        "[pre_migrate] Detected InconsistentMigrationHistory: 'admin.0001_initial' "
-                        "was applied before 'core_up.0001_initial'."
-                    ))
+                for app, name, applied in rows:
+                    if app == "admin" and name == "0001_initial":
+                        admin_applied = applied
+                    if (app == "core_up" or app == "backend") and name == "0001_initial":
+                        core_applied = applied
+
+                is_inconsistent = False
+                if admin_applied and not core_applied:
+                    is_inconsistent = True
+                elif admin_applied and core_applied and admin_applied < core_applied:
+                    is_inconsistent = True
+
+                if is_inconsistent:
+                    self.stdout.write(
+                        self.style.WARNING(
+                            "[pre_migrate] Detected InconsistentMigrationHistory: "
+                            "'admin.0001_initial' was applied before 'core_up.0001_initial'."
+                        )
+                    )
+
                     vendor = connection.vendor
                     if vendor == "postgresql":
-                        self.stdout.write(self.style.NOTICE(
-                            "[pre_migrate] Resetting PostgreSQL public schema to enable clean initial migration..."
-                        ))
+                        self.stdout.write(
+                            self.style.NOTICE(
+                                "[pre_migrate] Resetting PostgreSQL public schema to enable clean initial migration..."
+                            )
+                        )
                         cursor.execute("DROP SCHEMA public CASCADE; CREATE SCHEMA public;")
-                        self.stdout.write(self.style.SUCCESS(
-                            "[pre_migrate] PostgreSQL public schema reset successfully."
-                        ))
+                        self.stdout.write(
+                            self.style.SUCCESS(
+                                "[pre_migrate] PostgreSQL public schema reset successfully."
+                            )
+                        )
                     elif vendor == "sqlite":
-                        self.stdout.write(self.style.NOTICE(
-                            "[pre_migrate] Clearing migrations table on SQLite..."
-                        ))
+                        self.stdout.write(
+                            self.style.NOTICE(
+                                "[pre_migrate] Clearing migrations table on SQLite..."
+                            )
+                        )
                         cursor.execute("DROP TABLE django_migrations;")
-                        self.stdout.write(self.style.SUCCESS(
-                            "[pre_migrate] SQLite migrations table cleared."
-                        ))
+                        self.stdout.write(
+                            self.style.SUCCESS(
+                                "[pre_migrate] SQLite migrations table cleared."
+                            )
+                        )
                 else:
-                    self.stdout.write(self.style.SUCCESS(
-                        "[pre_migrate] Database migration history is consistent."
-                    ))
+                    self.stdout.write(
+                        self.style.SUCCESS(
+                            "[pre_migrate] Database migration history is consistent."
+                        )
+                    )
         except Exception as exc:
             self.stdout.write(self.style.WARNING(f"[pre_migrate] Notice: {exc}"))
