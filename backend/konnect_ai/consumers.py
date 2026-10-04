@@ -1,7 +1,17 @@
-"""Channels WebSocket consumer for KonnectAI voice calling."""
+"""Channels WebSocket consumer for KonnectAI voice calling.
 
+Improvements added:
+- Make TTS playback interruptible (barge-in): TTS synthesis/playback runs in a cancellable asyncio Task.
+- Send immediate text replies to the client before starting TTS so the UI can show the assistant reply instantly.
+- Cancel ongoing TTS when an "interrupt"/"barge_in" message arrives.
+- Cancel TTS task on disconnect.
+- Stream TTS as small base64 chunks (simulated by slicing the returned base64 payload) so the frontend can start playback earlier and handle partial audio.
+
+Be careful: ElevenLabs client still returns a single base64 audio blob; slicing that blob only approximates streaming. For real streaming, integrate a streaming TTS API.
+"""
 from __future__ import annotations
 
+import asyncio
 import base64
 import json
 import logging
@@ -20,7 +30,12 @@ logger = logging.getLogger(__name__)
 
 
 class KonnectAIConsumer(AsyncJsonWebsocketConsumer):
-    """Voice WebSocket handler for KonnectAI voice calls."""
+    """Voice WebSocket handler for KonnectAI voice calls.
+
+    This consumer now supports interruption (barge-in) during playback by
+    running TTS synthesis/playback in an asyncio.Task that can be cancelled
+    when the user sends an "interrupt" or "barge_in" event.
+    """
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -31,6 +46,7 @@ class KonnectAIConsumer(AsyncJsonWebsocketConsumer):
         self.elevenlabs = ElevenLabsClient()
         self.gemini = GeminiClient()
         self.is_interrupted = False
+        self._tts_task: asyncio.Task | None = None
 
     async def connect(self):
         """Authenticate user using DRF Token passed in query string."""
@@ -57,6 +73,13 @@ class KonnectAIConsumer(AsyncJsonWebsocketConsumer):
 
     async def disconnect(self, close_code):
         """Clean up on disconnect."""
+        # Cancel any running TTS task
+        if self._tts_task and not self._tts_task.done():
+            self._tts_task.cancel()
+            try:
+                await self._tts_task
+            except asyncio.CancelledError:
+                pass
         if self.session:
             await self._close_session(self.session)
 
@@ -85,8 +108,20 @@ class KonnectAIConsumer(AsyncJsonWebsocketConsumer):
             await self._process_utterance(content.get("page", "dashboard"))
 
         elif msg_type in ("interrupt", "barge_in"):
+            # Mark interruption and cancel any ongoing TTS playback task
             self.is_interrupted = True
             self.audio_buffer = bytearray()
+
+            # Cancel active TTS task so playback/synthesis stops
+            if self._tts_task and not self._tts_task.done():
+                self._tts_task.cancel()
+                try:
+                    await self._tts_task
+                except asyncio.CancelledError:
+                    pass
+                finally:
+                    self._tts_task = None
+
             await self.send_json({"type": "playback_stopped"})
 
         elif msg_type in ("end", "session_end"):
@@ -111,6 +146,7 @@ class KonnectAIConsumer(AsyncJsonWebsocketConsumer):
             await self.send_json({"type": "error", "detail": "Could not understand audio."})
             return
 
+        # Send intermediate transcripts immediately so the UI shows them
         await self.send_json({
             "type": "user_transcript",
             "text": transcription,
@@ -134,30 +170,31 @@ class KonnectAIConsumer(AsyncJsonWebsocketConsumer):
             gemini_client=self.gemini,
         )
 
-        # Notify intent
+        # Notify intent and tools immediately
         await self.send_json({
             "type": "intent",
-            "intent": turn_result["intent"],
+            "intent": turn_result.get("intent"),
         })
 
-        # Notify tool executions
         for tc in turn_result.get("tool_calls", []):
             await self.send_json({
                 "type": "tool_call",
-                "name": tc["name"],
+                "name": tc.get("name"),
                 "args": tc.get("args", {}),
             })
             await self.send_json({
                 "type": "tool_result",
-                "name": tc["name"],
+                "name": tc.get("name"),
                 "ok": tc.get("ok", True),
                 "summary": tc.get("summary", ""),
             })
 
-        # Send text replies
-        await self.send_json({"type": "reply_text", "text": turn_result["reply"]})
-        await self.send_json({"type": "ai_text", "text": turn_result["reply_en"]})
-        await self.send_json({"type": "ai_text_local", "text": turn_result["reply"]})
+        # Send immediate text replies so UI can display before audio is ready
+        reply_local = turn_result.get("reply") or ""
+        reply_en = turn_result.get("reply_en") or ""
+        await self.send_json({"type": "reply_text", "text": reply_local})
+        await self.send_json({"type": "ai_text", "text": reply_en})
+        await self.send_json({"type": "ai_text_local", "text": reply_local})
 
         if turn_result.get("sms_sent"):
             phone = getattr(self.user, "phone", "")
@@ -166,23 +203,68 @@ class KonnectAIConsumer(AsyncJsonWebsocketConsumer):
         if self.is_interrupted:
             return
 
-        # 3. TTS Synthesis
+        # 3. Start TTS synthesis/playback in a cancellable background task
         tts_lang = "sw" if self.language == "sw" else "en"
-        audio_b64 = await database_sync_to_async(self.elevenlabs.text_to_speech_base64)(
-            turn_result["reply"],
-            language=tts_lang,
-        )
 
-        if not self.is_interrupted:
-            await self.send_json({
-                "type": "audio_chunk",
-                "data": audio_b64,
-            })
-            await self.send_json({
-                "type": "audio_out",
-                "data": audio_b64,
-            })
+        # Cancel any previous task (safety) before starting a new one
+        if self._tts_task and not self._tts_task.done():
+            self._tts_task.cancel()
+            try:
+                await self._tts_task
+            except asyncio.CancelledError:
+                pass
+            finally:
+                self._tts_task = None
+
+        # Run the synth+stream task in background so we can still receive interrupts
+        self._tts_task = asyncio.create_task(self._synthesize_and_stream_audio(reply_local, tts_lang))
+
+    async def _synthesize_and_stream_audio(self, text: str, language: str):
+        """Synthesize text to speech and stream it to the client in small chunks.
+
+        This function is cancellable by cancelling the returned asyncio.Task.
+        """
+        try:
+            # Synthesis is performed in a sync function; call it via database_sync_to_async to reuse the DB threadpool
+            audio_b64 = await database_sync_to_async(self.elevenlabs.text_to_speech_base64)(text, language=language)
+            if not audio_b64:
+                await self.send_json({"type": "error", "detail": "TTS failed."})
+                return
+
+            # If a very large payload, stream it as smaller base64 slices so the frontend can begin playback early
+            total_len = len(audio_b64)
+            # Choose a reasonable slice size (characters of base64). Adjust as needed for performance.
+            slice_size = 8192
+            i = 0
+            while i < total_len:
+                if self.is_interrupted:
+                    # If the user interrupted while streaming, stop sending more audio
+                    await self.send_json({"type": "playback_stopped"})
+                    return
+                chunk = audio_b64[i : i + slice_size]
+                await self.send_json({"type": "audio_chunk", "data": chunk})
+                # Also send audio_out for compatibility with existing frontend handlers
+                await self.send_json({"type": "audio_out", "data": chunk})
+                i += slice_size
+                # yield control briefly to allow interrupts to be processed
+                await asyncio.sleep(0.01)
+
+            # final marker
             await self.send_json({"type": "turn_complete"})
+
+        except asyncio.CancelledError:
+            # Task was cancelled due to user interrupt or disconnect
+            logger.debug("[KonnectAIConsumer] TTS task cancelled (interrupted by user).")
+            try:
+                await self.send_json({"type": "playback_stopped"})
+            except Exception:
+                pass
+            raise
+        except Exception as exc:
+            logger.exception("[KonnectAIConsumer] TTS synthesis/stream failed: %s", exc)
+            await self.send_json({"type": "error", "detail": "TTS error"})
+        finally:
+            self._tts_task = None
 
     # ---------------- Sync-to-Async DB Helpers ----------------
 
@@ -205,6 +287,7 @@ class KonnectAIConsumer(AsyncJsonWebsocketConsumer):
     @database_sync_to_async
     def _close_session(self, session):
         from django.utils import timezone
+
         if not session.ended_at:
             session.ended_at = timezone.now()
             session.save(update_fields=["ended_at"])
