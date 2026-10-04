@@ -9,6 +9,7 @@ FRONTEND_DIR = settings.FRONTEND_DIR
 urlpatterns = [
     # --- Admin & API ---
     path("admin/", admin.site.urls),
+    path("api/konnect-ai/", include("konnect_ai.urls")),
     path("api/", include("backend.urls")),
 
     # --- Frontend HTML pages ---

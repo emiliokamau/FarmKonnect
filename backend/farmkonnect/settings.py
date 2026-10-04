@@ -17,6 +17,7 @@ ALLOWED_HOSTS = ["127.0.0.1", "localhost"]
 # Apps
 # ------------------------------------------------------------------
 INSTALLED_APPS = [
+    "daphne",
     "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",
@@ -28,8 +29,10 @@ INSTALLED_APPS = [
     "rest_framework.authtoken",
     "corsheaders",
     "django_filters",
+    "channels",
 
     "backend",
+    "konnect_ai",
 ]
 
 # ------------------------------------------------------------------
@@ -68,6 +71,7 @@ TEMPLATES = [
 ]
 
 WSGI_APPLICATION = "farmkonnect.wsgi.application"
+ASGI_APPLICATION = "farmkonnect.asgi.application"
 
 AUTH_USER_MODEL = "backend.User"
 
@@ -161,4 +165,35 @@ EMAIL_HOST_USER = os.getenv("EMAIL_HOST_USER", "")
 EMAIL_HOST_PASSWORD = os.getenv("EMAIL_HOST_PASSWORD", "")
 DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL", "FarmKonnect <no-reply@farmkonnect.local>")
 
-OTP_TTL_MINUTES = int(os.getenv("OTP_TTL_MINUTES", "10"))
+OTP_TTL_MINUTES = int(os.getenv("OTP_TTL_MINUTES", "10"))
+
+# ------------------------------------------------------------------
+# Channels & WebSocket Configuration
+# ------------------------------------------------------------------
+REDIS_URL = os.getenv("REDIS_URL", "").strip()
+if REDIS_URL:
+    CHANNEL_LAYERS = {
+        "default": {
+            "BACKEND": "channels_redis.core.RedisChannelLayer",
+            "CONFIG": {
+                "hosts": [REDIS_URL],
+            },
+        },
+    }
+else:
+    CHANNEL_LAYERS = {
+        "default": {
+            "BACKEND": "channels.layers.InMemoryChannelLayer",
+        },
+    }
+
+# ------------------------------------------------------------------
+# KonnectAI / AI Model API Settings
+# ------------------------------------------------------------------
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
+GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-1.5-flash")
+
+ELEVENLABS_API_KEY = os.getenv("ELEVENLABS_API_KEY", "")
+ELEVENLABS_VOICE_ID_EN = os.getenv("ELEVENLABS_VOICE_ID_EN", "21m00Tcm4TlvDq8ikWAM")
+ELEVENLABS_VOICE_ID_SW = os.getenv("ELEVENLABS_VOICE_ID_SW", "21m00Tcm4TlvDq8ikWAM")
+
