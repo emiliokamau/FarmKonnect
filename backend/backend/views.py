@@ -47,7 +47,6 @@ def register_view(request):
             "channel": delivery.get("channel"),
             "delivered": delivery.get("delivered"),
         },
-        "otp_debug": otp,
     }, status=status.HTTP_201_CREATED)
 
 
@@ -74,7 +73,6 @@ def request_otp_view(request):
     return Response({
         "detail": "OTP sent.",
         "delivery": {"channel": delivery.get("channel"), "delivered": delivery.get("delivered")},
-        "otp_debug": otp,
     })
 
 
@@ -138,7 +136,6 @@ def login_password_view(request):
         "detail": "Credentials verified. OTP sent.",
         "identifier": identifier,
         "delivery": {"channel": delivery.get("channel"), "delivered": delivery.get("delivered")},
-        "otp_debug": otp,
     })
 
 
