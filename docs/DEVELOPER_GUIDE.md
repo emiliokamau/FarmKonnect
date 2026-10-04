@@ -1,136 +1,95 @@
 # FarmKonnect Developer Guide
 
-FarmKonnect is a React and Django REST Framework portal for agricultural information and services. It brings county and commodity market prices, agricultural events and grants, post-harvest advisory requests, and a marketplace data model into one application for farmers and agricultural extension teams.
+FarmKonnect is an all-in-one agricultural information and services platform built with Django, Django REST Framework, and a native HTML, CSS, and JavaScript frontend. It brings county and commodity market prices, agricultural events and grants, post-harvest advisory requests, Point of Sale (POS), and Farm Management (FMS) into a single unified application.
 
-This guide documents the repository as it exists today. It does not describe planned features or infrastructure that is not present in the codebase.
+This guide documents the repository as configured for local development.
 
 ## 1. System Architecture & Overview
 
 ### High-level architecture
 
 ```text
-Browser
+Browser (HTML5 / CSS3 / ES6 Fetch)
   |
-  | React 18 UI, Axios requests
-  v
-http://localhost:8000/api/
+  +---> http://localhost:8000/ (index.html, login.html, dashboard.html, pos.html, etc.)
   |
-  | Django URL router -> Django REST Framework viewsets
-  v
-SQLite database + Django models
-  |
-  +-- market price and event data
-  +-- advisory request and recommendation data
-  +-- marketplace and device-token data
+  +---> http://localhost:8000/api/ (Django REST Framework endpoints)
+          |
+          v
+      Django URL router -> Django REST Framework viewsets
+          |
+          v
+      SQLite database (backend/db.sqlite3) + Django models
+          +-- User & Farmer Profile
+          +-- Market prices & County/Commodity reference data
+          +-- Farm Management (Farms, Crops, Plantings, Inputs, Diseases, Harvests, Inventory)
+          +-- Point of Sale & Marketplace (Products, Listings, Orders)
+          +-- Advisory Requests & Events
 ```
 
-The frontend is a Create React App application in `frontend/`. Its Axios client is configured in `frontend/src/api.js` with the base URL `http://localhost:8000/api/` and `withCredentials: true`.
-
-The backend is a Django project in `backend/`. API routes are mounted below `/api/` with a Django REST Framework router. The local database configuration uses SQLite at `backend/db.sqlite3`.
-
-There is no Docker configuration, CI workflow, Render configuration, Vercel configuration, or other deployment definition in this repository. There is also no frontend Tailwind configuration; the implemented UI uses React and Material UI (`@mui/material`) with Emotion styling.
+The frontend uses standard HTML5, CSS3, and JavaScript located in `frontend/`, served directly by Django via `backend/farmkonnect/urls.py` and template views.
+API calls are performed using `frontend/js/api.js` with the base URL `/api/` and Token authentication.
 
 ### Implemented frontend areas
 
-- **Welcome page:** the root route displays the FarmKonnect portal greeting.
-- **Market Prices:** `/prices` calls `GET /api/prices/trend/` with commodity, county, and day-count query parameters.
-- **Officers:** `/officers` renders the officer connection screen.
-- **Events & Grants:** `/events` renders the event list screen.
-- **Advisory:** `/advisory` creates an advisory request, runs the advisory action, and reads the recommendation.
+- **Welcome page:** `http://localhost:8000/` or `index.html` displays the FarmKonnect portal landing page with dynamic service cards.
+- **Login & Registration:** `login.html`, `register.html`, and `verify-otp.html` handle user registration, phone/email password verification, and 6-digit OTP verification.
+- **Farmer Profile Setup:** `farmer-profile.html` allows farmers to save their details and location.
+- **Dashboard:** `dashboard.html` provides the main hub for overview metrics and Farm Management System (FMS).
+- **Point of Sale (POS):** `pos.html` provides sales, product catalogs, customer tracking, and reports.
+- **Farmer Portal:** `farmer-portal.html` provides price comparison, market trends, AI disease diagnosis, best practices, and officer communication.
 
-### User roles
+### User roles & Authentication
 
-The repository declares a `backend.User` model with these roles:
-
-| Role | Intended responsibility | Implemented access behavior |
-| --- | --- | --- |
-| `farmer` | Submit and view their own advisory requests; use farmer-facing portal features. | Advisory querysets are limited to the authenticated farmer. |
-| `officer` | County-level agricultural extension work and access to advisory outcomes. | Officers can access the advisory queryset. |
-| `admin` | Platform administration. | The role is defined in the model; Django admin permissions still apply separately. |
-
-All configured DRF endpoints use authentication by default. Most read-only reference endpoints explicitly require `IsAuthenticated`. Advisory endpoints add role-aware permissions. Note that `farmkonnect/settings.py` does not currently set `AUTH_USER_MODEL = "backend.User"`; verify and correct that configuration before relying on the custom role field in a new environment.
+The repository defines a custom user model `backend.User` supporting phone and email login with OTP verification:
+- Default authentication: Token authentication (`Token <key>` header)
+- Anonymous users can view reference data (commodities, counties, prices, events, published products).
+- Authenticated farmers and extension officers can manage farms, crops, sales, and advisory requests.
 
 ## 2. Local Development Setup
 
 ### Prerequisites
 
 - Windows, macOS, or Linux
-- Python compatible with Django 5.1
-- Node.js and npm
+- Python 3.11+
 - Git
-- A local SQLite installation is not required separately because Python includes SQLite support.
 
-The repository currently declares these backend packages in `backend/requirements.txt`:
+### Running on Localhost
 
-```text
-django==5.1
-djangorestframework==3.15.2
-django-filter==24.3
-celery==5.4.0
-requests==2.32.3
+#### Option A: One-click Start Script (PowerShell / Windows)
+From the repository root:
+
+```powershell
+.\start.ps1
 ```
 
-The frontend declares React 18, Create React App (`react-scripts` 5.0.1), Axios, and Material UI. `frontend/package.json` currently does not declare `react-router-dom`, although `frontend/src/App.js` imports it; install or add that dependency before starting the frontend.
+Or for Command Prompt:
 
-### Backend installation
+```cmd
+start.bat
+```
 
+#### Option B: Manual Setup
 From the repository root:
 
 ```powershell
 cd backend
-python -m venv .venv
-.\.venv\Scripts\Activate.ps1
-python -m pip install --upgrade pip
-python -m pip install -r requirements.txt
-```
-
-Run Django checks and initialize the database:
-
-```powershell
-python manage.py check
-python manage.py makemigrations
+python -m venv venv
+.\venv\Scripts\Activate.ps1
+pip install -r requirements.txt
 python manage.py migrate
-python manage.py createsuperuser
+python manage.py seed_data
+python manage.py runserver 127.0.0.1:8000
 ```
 
-Start the backend:
+The application is then live at `http://127.0.0.1:8000/`.
 
-```powershell
-python manage.py runserver 8000
-```
+### Default Accounts
+- **Admin / Demo Account:**
+  - Phone: `0701519479`
+  - Password: `Admin1234`
+  - OTP in development: Printed in terminal / console output and returned in login API response for rapid testing.
 
-The backend is then available at `http://localhost:8000/`, with the API at `http://localhost:8000/api/` and the admin site at `http://localhost:8000/admin/`.
-
-### Frontend installation
-
-Open a second terminal from the repository root:
-
-```powershell
-cd frontend
-npm install
-npm install react-router-dom
-npm start
-```
-
-The frontend starts at `http://localhost:3000/` and sends API requests to the backend URL hard-coded in `frontend/src/api.js`.
-
-Useful frontend commands are:
-
-```powershell
-npm test
-npm run build
-```
-
-### Current setup blockers
-
-The repository needs these code corrections before a clean first run:
-
-1. `frontend/src/App.js` imports `react-router-dom`, but `frontend/package.json` does not list it.
-2. `backend/farmkonnect/urls.py` registers `ProductViewSet`, `ListingViewSet`, `OrderViewSet`, and `DeviceTokenViewSet` without importing them from `backend.views`.
-3. The repository has no committed Django migration files. Run `makemigrations` after the backend imports are corrected.
-4. Authentication endpoints are not implemented in the current router. A user must therefore be created through Django admin, the Django shell, or another existing provisioning process before authenticated API calls can be made.
-
-These are repository facts, not additional features to implement as part of this documentation.
 
 ## 3. Environment Variables
 
@@ -363,26 +322,15 @@ The repository currently has `master` checked out locally while the GitHub repos
 
 ### Frontend practices
 
-- Keep API access in the shared Axios client or a nearby feature component.
-- Preserve the existing React 18 and Material UI patterns unless a deliberate UI migration is approved.
-- Use the existing route structure and handle API errors through the response `detail` value where available.
-- Run the production build before submitting changes:
-
-```powershell
-cd frontend
-npm run build
-```
+- Keep API access in `frontend/js/api.js`.
+- Use native HTML5, CSS3, and modern JavaScript (ES6+).
+- All static assets (CSS, JS, images) are served directly by Django.
 
 ### Validation checklist
 
 ```powershell
 cd backend
 python manage.py check
-python manage.py test
-
-cd ..\frontend
-npm test -- --watchAll=false
-npm run build
+python manage.py test tests
 ```
 
-The commands above are the intended validation workflow. They may remain blocked until the missing frontend dependency, missing URL imports, and migration baseline are corrected.
