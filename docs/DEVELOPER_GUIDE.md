@@ -11,15 +11,15 @@ This guide documents the repository as configured for local development.
 ```text
 Browser (HTML5 / CSS3 / ES6 Fetch)
   |
-  +---> http://localhost:8000/ (index.html, login.html, dashboard.html, pos.html, etc.)
+  +---> https://farmkonnect.zirocreativeagency.co.ke/ (index.html, login.html, dashboard.html, pos.html, etc.)
   |
-  +---> http://localhost:8000/api/ (Django REST Framework endpoints)
+  +---> https://farmkonnect.zirocreativeagency.co.ke/api/ (Django REST Framework endpoints)
           |
           v
       Django URL router -> Django REST Framework viewsets
           |
           v
-      SQLite database (backend/db.sqlite3) + Django models
+      Database (PostgreSQL production / SQLite local) + Django models
           +-- User & Farmer Profile
           +-- Market prices & County/Commodity reference data
           +-- Farm Management (Farms, Crops, Plantings, Inputs, Diseases, Harvests, Inventory)
@@ -27,12 +27,12 @@ Browser (HTML5 / CSS3 / ES6 Fetch)
           +-- Advisory Requests & Events
 ```
 
-The frontend uses standard HTML5, CSS3, and JavaScript located in `frontend/`, served directly by Django via `backend/farmkonnect/urls.py` and template views.
-API calls are performed using `frontend/js/api.js` with the base URL `/api/` and Token authentication.
+The frontend uses standard HTML5, CSS3, and JavaScript located in `frontend/`, served in production via Nginx reverse proxy.
+API calls are performed using `frontend/js/api.js` with the relative base URL `/api/` and Token authentication.
 
 ### Implemented frontend areas
 
-- **Welcome page:** `http://localhost:8000/` or `index.html` displays the FarmKonnect portal landing page with dynamic service cards.
+- **Welcome page:** `https://farmkonnect.zirocreativeagency.co.ke/` or `index.html` displays the FarmKonnect portal landing page with dynamic service cards.
 - **Login & Registration:** `login.html`, `register.html`, and `verify-otp.html` handle user registration, phone/email password verification, and 6-digit OTP verification.
 - **Farmer Profile Setup:** `farmer-profile.html` allows farmers to save their details and location.
 - **Dashboard:** `dashboard.html` provides the main hub for overview metrics and Farm Management System (FMS).
@@ -130,10 +130,10 @@ Do not commit real secrets. The repository `.gitignore` excludes `.env` files an
 
 ### Base URL and authentication
 
-The local base URL is:
+The API base URL is:
 
 ```text
-http://localhost:8000/api/
+https://farmkonnect.zirocreativeagency.co.ke/api/
 ```
 
 DRF is configured with:

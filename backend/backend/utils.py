@@ -87,7 +87,7 @@ def send_sms(phone: str, message: str) -> dict:
 
     mobile = normalize_phone_ke(phone)
 
-    if not api_key or api_key == "PASTE_YOUR_API_KEY_HERE":
+    if not api_key:
         logger.warning("[SMS skipped] TEXTSMS_API_KEY not configured. Would send to %s: %s", mobile, message)
         return {"ok": False, "provider": "textsms", "error": "API key not configured"}
 

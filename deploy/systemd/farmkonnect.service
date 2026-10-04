@@ -1,0 +1,26 @@
+[Unit]
+Description=FarmKonnect Daphne ASGI Daemon
+After=network.target postgresql.service redis-server.service
+
+[Service]
+User=www-data
+Group=www-data
+WorkingDirectory=/var/www/farmkonnect/backend
+EnvironmentFile=/var/www/farmkonnect/backend/.env
+ExecStart=/var/www/farmkonnect/backend/venv/bin/daphne \
+          -u /run/farmkonnect.sock \
+          -m 0666 \
+          farmkonnect.asgi:application
+Restart=always
+RestartSec=3
+
+StandardOutput=append:/var/www/farmkonnect/backend/logs/farmkonnect.log
+StandardError=append:/var/www/farmkonnect/backend/logs/farmkonnect_error.log
+
+# Sandbox & Hardening protections
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=true
+
+[Install]
+WantedBy=multi-user.target

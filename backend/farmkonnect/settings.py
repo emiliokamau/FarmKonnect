@@ -1,4 +1,6 @@
-"""Django settings for FarmKonnect."""
+"""Production & Hardened Settings for FarmKonnect.
+Domain: farmkonnect.zirocreativeagency.co.ke
+"""
 
 import os
 from pathlib import Path
@@ -9,9 +11,24 @@ load_dotenv()
 BASE_DIR = Path(__file__).resolve().parent.parent
 FRONTEND_DIR = BASE_DIR.parent / "frontend"
 
-SECRET_KEY = os.getenv("DJANGO_SECRET_KEY", "django-insecure-CHANGE_ME")
-DEBUG = os.getenv("DJANGO_DEBUG", "True") == "True"
-ALLOWED_HOSTS = ["127.0.0.1", "localhost"]
+# Production Debug Flag: Defaults to False
+DEBUG = os.getenv("DJANGO_DEBUG", "False") == "True"
+
+# Cryptographic Secret Key: Required in production
+SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY")
+if not SECRET_KEY:
+    if DEBUG:
+        SECRET_KEY = "django-insecure-dev-key-farmkonnect-local-testing"
+    else:
+        raise KeyError("DJANGO_SECRET_KEY environment variable is required in production.")
+
+# Production Hosts
+ALLOWED_HOSTS = [
+    "farmkonnect.zirocreativeagency.co.ke",
+    "www.farmkonnect.zirocreativeagency.co.ke",
+]
+if DEBUG:
+    ALLOWED_HOSTS += ["127.0.0.1", "localhost", "testserver"]
 
 # ------------------------------------------------------------------
 # Apps
@@ -76,27 +93,57 @@ ASGI_APPLICATION = "farmkonnect.asgi.application"
 AUTH_USER_MODEL = "backend.User"
 
 # ------------------------------------------------------------------
-# Database
+# Database Configuration (PostgreSQL in production, SQLite fallback)
 # ------------------------------------------------------------------
-DATABASES = {
-    "default": {
-        "ENGINE": "django.db.backends.sqlite3",
-        "NAME": BASE_DIR / "db.sqlite3",
+if os.getenv("DB_NAME"):
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.postgresql",
+            "NAME": os.environ["DB_NAME"],
+            "USER": os.environ.get("DB_USER", "farmkonnect"),
+            "PASSWORD": os.environ.get("DB_PASSWORD", ""),
+            "HOST": os.environ.get("DB_HOST", "127.0.0.1"),
+            "PORT": os.environ.get("DB_PORT", "5432"),
+        }
     }
-}
+else:
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.sqlite3",
+            "NAME": BASE_DIR / "db.sqlite3",
+        }
+    }
 
-# Static files (CSS, JavaScript, images)
-# https://docs.djangoproject.com/en/stable/howto/static-files/
-
-STATIC_URL = "static/"
-
-# Where `collectstatic` copies files to for production.
+# ------------------------------------------------------------------
+# Static & Media Files
+# ------------------------------------------------------------------
+STATIC_URL = "/static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
+MEDIA_URL = "/media/"
+MEDIA_ROOT = BASE_DIR / "media"
 
-# Extra directories to scan for static files outside of apps.
 STATICFILES_DIRS = [
     FRONTEND_DIR,
 ]
+
+# ------------------------------------------------------------------
+# Security & HTTPS Hardening
+# ------------------------------------------------------------------
+if not DEBUG:
+    SECURE_SSL_REDIRECT = True
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
+    SECURE_HSTS_SECONDS = 31536000
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+    SECURE_HSTS_PRELOAD = True
+    SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+    SECURE_CONTENT_TYPE_NOSNIFF = True
+    SECURE_BROWSER_XSS_FILTER = True
+    X_FRAME_OPTIONS = "DENY"
+else:
+    SECURE_SSL_REDIRECT = False
+    SESSION_COOKIE_SECURE = False
+    CSRF_COOKIE_SECURE = False
 
 # Password validation
 AUTH_PASSWORD_VALIDATORS = [
@@ -118,9 +165,8 @@ MARKET_DATA_DIR = BASE_DIR / "market_data"
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 # ------------------------------------------------------------------
-# DRF — token auth so OTP login works; IsAuthenticatedOrReadOnly so anonymous can register/login
+# DRF Authentication & Permissions
 # ------------------------------------------------------------------
-
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": [
         "rest_framework.authentication.TokenAuthentication",
@@ -135,25 +181,72 @@ REST_FRAMEWORK = {
 }
 
 # ------------------------------------------------------------------
-# CORS / CSRF
+# CORS / CSRF Configuration
 # ------------------------------------------------------------------
-CORS_ALLOW_ALL_ORIGINS = True
+CORS_ALLOW_ALL_ORIGINS = False
 CORS_ALLOW_CREDENTIALS = True
 
-CSRF_TRUSTED_ORIGINS = [
-    "http://127.0.0.1:5500",
-    "http://localhost:5500",
-    "http://127.0.0.1:8000",
-    "http://localhost:8000",
-    "http://127.0.0.1:3000",
-    "http://localhost:3000",
+CORS_ALLOWED_ORIGINS = [
+    "https://farmkonnect.zirocreativeagency.co.ke",
+    "https://www.farmkonnect.zirocreativeagency.co.ke",
 ]
+CSRF_TRUSTED_ORIGINS = [
+    "https://farmkonnect.zirocreativeagency.co.ke",
+    "https://www.farmkonnect.zirocreativeagency.co.ke",
+]
+if DEBUG:
+    CORS_ALLOWED_ORIGINS += [
+        "http://127.0.0.1:8000",
+        "http://localhost:8000",
+    ]
+    CSRF_TRUSTED_ORIGINS += [
+        "http://127.0.0.1:8000",
+        "http://localhost:8000",
+    ]
 
+# ------------------------------------------------------------------
+# Logging (Production)
+# ------------------------------------------------------------------
+LOG_DIR = BASE_DIR / "logs"
+LOG_DIR.mkdir(parents=True, exist_ok=True)
+
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "formatters": {
+        "verbose": {
+            "format": "[{asctime}] {levelname} [{name}:{lineno}] {message}",
+            "style": "{",
+        },
+    },
+    "handlers": {
+        "file": {
+            "class": "logging.FileHandler",
+            "filename": LOG_DIR / "farmkonnect.log",
+            "formatter": "verbose",
+        },
+        "console": {
+            "class": "logging.StreamHandler",
+            "formatter": "verbose",
+        },
+    },
+    "root": {
+        "handlers": ["file", "console"] if not DEBUG else ["console"],
+        "level": "INFO",
+    },
+}
+
+# ------------------------------------------------------------------
+# TextSMS Kenya Integration
+# ------------------------------------------------------------------
 TEXTSMS_API_KEY = os.getenv("TEXTSMS_API_KEY", "")
 TEXTSMS_PARTNER_ID = os.getenv("TEXTSMS_PARTNER_ID", "")
 TEXTSMS_SHORTCODE = os.getenv("TEXTSMS_SHORTCODE", "")   
 TEXTSMS_ENDPOINT = "https://sms.textsms.co.ke/api/services/sendsms/"
 
+# ------------------------------------------------------------------
+# Email Integration
+# ------------------------------------------------------------------
 EMAIL_BACKEND = os.getenv(
     "DJANGO_EMAIL_BACKEND",
     "django.core.mail.backends.console.EmailBackend",
@@ -163,7 +256,10 @@ EMAIL_PORT = int(os.getenv("EMAIL_PORT", "587"))
 EMAIL_USE_TLS = os.getenv("EMAIL_USE_TLS", "True") == "True"
 EMAIL_HOST_USER = os.getenv("EMAIL_HOST_USER", "")
 EMAIL_HOST_PASSWORD = os.getenv("EMAIL_HOST_PASSWORD", "")
-DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL", "FarmKonnect <no-reply@farmkonnect.local>")
+DEFAULT_FROM_EMAIL = os.getenv(
+    "DEFAULT_FROM_EMAIL",
+    "FarmKonnect <no-reply@farmkonnect.zirocreativeagency.co.ke>",
+)
 
 OTP_TTL_MINUTES = int(os.getenv("OTP_TTL_MINUTES", "10"))
 
@@ -196,4 +292,3 @@ GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-1.5-flash")
 ELEVENLABS_API_KEY = os.getenv("ELEVENLABS_API_KEY", "")
 ELEVENLABS_VOICE_ID_EN = os.getenv("ELEVENLABS_VOICE_ID_EN", "21m00Tcm4TlvDq8ikWAM")
 ELEVENLABS_VOICE_ID_SW = os.getenv("ELEVENLABS_VOICE_ID_SW", "21m00Tcm4TlvDq8ikWAM")
-

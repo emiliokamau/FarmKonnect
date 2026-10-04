@@ -88,8 +88,8 @@ Configure your credentials in `backend/.env` (or copy from `.env.example`):
 ```ini
 # Django Secret Key and Debug
 SECRET_KEY=your-django-secret-key
-DEBUG=True
-ALLOWED_HOSTS=localhost,127.0.0.1
+DEBUG=False
+ALLOWED_HOSTS=farmkonnect.zirocreativeagency.co.ke,www.farmkonnect.zirocreativeagency.co.ke
 
 # AI & LLM (Google Gemini)
 # Obtain from: https://aistudio.google.com/
@@ -118,7 +118,7 @@ cd backend
 python manage.py migrate
 python manage.py runserver
 ```
-*Note: Because `daphne` is in `INSTALLED_APPS` and ASGI is configured in `settings.py`, `python manage.py runserver` automatically starts the Daphne ASGI server, supporting both HTTP and WebSockets simultaneously on `localhost:8000`.*
+*Note: Because `daphne` is configured in `INSTALLED_APPS` and ASGI in `settings.py`, Daphne serves both HTTP and WebSockets simultaneously in development and production.*
 
 ---
 
@@ -179,8 +179,8 @@ Test files:
 - `konnect_ai/tests/test_consumer.py`: Validates Channels WebSocket consumer authentication, `session_start`, `audio_chunk`, and `barge_in`.
 - `konnect_ai/tests/test_audit.py`: Validates PII masking (masking phone numbers to last 4 digits), secret scrubbing, and immutable audit logs.
 
-### Testing Voice Mode Locally
-1. Log into FarmKonnect in the browser (`http://localhost:8000/login.html`).
+### Testing Voice Mode
+1. Log into FarmKonnect in the browser (`https://farmkonnect.zirocreativeagency.co.ke/login.html`).
 2. Navigate to `dashboard.html` or `pos.html`.
 3. Click the green **🎙 Call AI** button in the bottom right corner.
 4. If `ELEVENLABS_API_KEY` is not provided, the system seamlessly uses the local mock STT and TTS synthesis, allowing you to test the voice call flow without external credentials.
@@ -190,7 +190,7 @@ Test files:
 
 **1. Create a Conversation Session:**
 ```bash
-curl -X POST http://127.0.0.1:8000/api/konnect-ai/sessions/ \
+curl -X POST https://farmkonnect.zirocreativeagency.co.ke/api/konnect-ai/sessions/ \
   -H "Authorization: Token YOUR_AUTH_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"modality": "text", "language": "auto"}'
@@ -198,7 +198,7 @@ curl -X POST http://127.0.0.1:8000/api/konnect-ai/sessions/ \
 
 **2. Send a Conversational Turn (Swahili Sale):**
 ```bash
-curl -X POST http://127.0.0.1:8000/api/konnect-ai/turn/ \
+curl -X POST https://farmkonnect.zirocreativeagency.co.ke/api/konnect-ai/turn/ \
   -H "Authorization: Token YOUR_AUTH_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{

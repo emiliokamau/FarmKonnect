@@ -4,6 +4,8 @@ from django.views.generic import TemplateView
 from django.conf import settings
 from django.views.static import serve as static_serve
 
+from django.conf.urls.static import static
+
 FRONTEND_DIR = settings.FRONTEND_DIR
 
 urlpatterns = [
@@ -28,3 +30,6 @@ urlpatterns = [
     path("js/<path:path>", static_serve, {"document_root": FRONTEND_DIR / "js"}),
     path("favicon.ico", static_serve, {"document_root": FRONTEND_DIR, "path": "favicon.ico"}),
 ]
+
+if settings.DEBUG:
+    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

@@ -383,8 +383,8 @@ function mountKonnectAI(page, token) {
     }
 
     // Connect WebSocket
-    const proto = window.location.protocol === "https:" ? "wss:" : "ws:";
-    const wsUrl = `${proto}//${window.location.host}/ws/konnect-ai/?token=${encodeURIComponent(token)}`;
+    const WS_BASE = (location.protocol === "https:" ? "wss://" : "ws://") + location.host;
+    const wsUrl = `${WS_BASE}/ws/konnect-ai/?token=${encodeURIComponent(token)}`;
 
     try {
       ws = new WebSocket(wsUrl);
