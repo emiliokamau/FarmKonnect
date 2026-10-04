@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Farmer Portal · FarmKonnect</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body data-page="farmer">
+  <div class="app-shell">
+    <aside class="sidebar">
+      <a href="dashboard.html" class="logo">🌾 FarmKonnect</a>
+      <nav>
+        <div class="nav-group open">
+          <div class="nav-group-title">Farmer Portal</div>
+          <div class="nav-group-items">
+            <a href="#" data-portal-tab="trends"   class="active">📊 Market Trends</a>
+            <a href="#" data-portal-tab="prices">   📈 Price Comparison</a>
+            <a href="#" data-portal-tab="disease">  🦠 Disease Detection</a>
+            <a href="#" data-portal-tab="practices">🌱 Best Practices</a>
+            <a href="#" data-portal-tab="officers"> 👨‍🌾 Officers</a>
+            <a href="#" data-portal-tab="events">   🎓 Training & Grants</a>
+            <a href="#" data-portal-tab="subsidy">  🌾 Fertilizer Subsidy</a>
+            <a href="#" data-portal-tab="advisories">💬 Ask an Officer</a>
+          </div>
+        </div>
+        <div class="nav-group">
+          <div class="nav-group-title">Other Modules</div>
+          <div class="nav-group-items">
+            <a href="dashboard.html">Back to Dashboard</a>
+            <a href="pos.html">Point of Sale</a>
+          </div>
+        </div>
+        <div class="nav-group">
+          <div class="nav-group-title">Account</div>
+          <div class="nav-group-items">
+            <a href="farmer-profile.html">My Profile</a>
+            <a href="#" data-logout>Logout</a>
+          </div>
+        </div>
+      </nav>
+    </aside>
+
+    <main class="main-area">
+      <div class="topbar">
+        <h1 id="portalTitle">Market Trends</h1>
+        <div>Welcome, <strong id="portalUser">Farmer</strong></div>
+      </div>
+
+      <!-- ============ MARKET TRENDS ============ -->
+      <section id="tab-trends" class="content-section active">
+        <div class="mb-1" style="display:flex;gap:1rem;flex-wrap:wrap;align-items:center;">
+          <label>Commodity
+            <select id="trendsCommodity" style="padding:.5rem .75rem;border-radius:8px;border:1px solid var(--border);">
+              <option value="">All commodities</option>
+            </select>
+          </label>
+          <label>County
+            <select id="trendsCounty" style="padding:.5rem .75rem;border-radius:8px;border:1px solid var(--border);">
+              <option value="">All counties</option>
+            </select>
+          </label>
+          <button class="btn-outline" id="trendsRefresh">Refresh</button>
+        </div>
+        <div class="stat-grid" id="trendsStats"></div>
+        <div class="card" style="margin-top:1.5rem;">
+          <h3>Recent Prices</h3>
+          <div id="trendsTable"><p class="muted">Loading…</p></div>
+        </div>
+      </section>
+
+      <!-- ============ PRICE COMPARISON ============ -->
+      <section id="tab-prices" class="content-section">
+        <p class="muted">Compare commodity prices across counties. 🏆 marks the highest price.</p>
+        <div id="compareArea"></div>
+      </section>
+
+      <!-- ============ DISEASE DETECTION ============ -->
+      <section id="tab-disease" class="content-section">
+        <div class="card" style="max-width:640px;">
+          <h3>Disease Detection</h3>
+          <p class="muted">Upload a photo of the affected plant. Our AI will suggest a likely diagnosis and treatment.</p>
+          <input type="file" id="diseaseFile" accept="image/*">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-top:1rem;">
+            <label>Crop<input id="diseaseCrop" placeholder="e.g. Maize"></label>
+            <label>Farm (optional)
+              <select id="diseaseFarm"><option value="">—</option></select>
+            </label>
+          </div>
+          <button class="btn-primary" id="analyzeDiseaseBtn" style="margin-top:1rem;">Analyze</button>
+          <div id="diseaseResult" style="margin-top:1rem;"></div>
+        </div>
+        <div class="card" style="margin-top:1.5rem;">
+          <h3>My Recent Reports</h3>
+          <div id="myDiseaseReports"><p class="muted">Loading…</p></div>
+        </div>
+      </section>
+
+      <!-- ============ BEST PRACTICES ============ -->
+      <section id="tab-practices" class="content-section">
+        <p class="muted">Farming best-practice guides curated by agricultural officers.</p>
+        <div id="practicesArea" class="grid"><p class="muted">Loading…</p></div>
+      </section>
+
+      <!-- ============ OFFICERS ============ -->
+      <section id="tab-officers" class="content-section">
+        <p class="muted">Reach out to agricultural officers for advice.</p>
+        <div id="officersArea" class="grid"><p class="muted">Loading…</p></div>
+      </section>
+
+      <!-- ============ EVENTS ============ -->
+      <section id="tab-events" class="content-section">
+        <p class="muted">Training sessions, grants, and upcoming agricultural events.</p>
+        <div id="eventsArea" class="grid"><p class="muted">Loading…</p></div>
+      </section>
+
+      <!-- ============ FERTILIZER SUBSIDY ============ -->
+      <section id="tab-subsidy" class="content-section">
+        <p class="muted">Government and partner subsidized fertilizer programmes.</p>
+        <div id="subsidyArea" class="grid"><p class="muted">Loading…</p></div>
+      </section>
+
+      <!-- ============ ADVISORIES (Ask an Officer) ============ -->
+      <section id="tab-advisories" class="content-section">
+        <div class="card" style="margin-bottom:1.5rem;max-width:640px;">
+          <h3>Ask an Officer</h3>
+          <form id="advisoryForm" class="form">
+            <label>Subject<input name="subject" required></label>
+            <label>Message<textarea name="message" rows="4" required></textarea></label>
+            <button class="btn-primary" type="submit">Send Request</button>
+            <p id="advisoryMsg" class="form-msg"></p>
+          </form>
+        </div>
+        <div class="card">
+          <h3>My Advisory Requests</h3>
+          <div id="advisoriesList"><p class="muted">Loading…</p></div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script src="js/api.js"></script>
+  <script src="js/farmer-portal.js"></script>
+</body>
+</html>

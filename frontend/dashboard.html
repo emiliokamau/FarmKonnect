@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Dashboard · FarmKonnect</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body data-page="dashboard">
+  <div class="app-shell">
+    <aside class="sidebar">
+      <a href="index.html" class="logo">🌾 FarmKonnect</a>
+
+      <nav>
+        <div class="nav-group open">
+          <div class="nav-group-title">Dashboard</div>
+          <div class="nav-group-items">
+            <a href="#" data-section="overview" class="active">Overview</a>
+          </div>
+        </div>
+
+        <div class="nav-group open">
+          <div class="nav-group-title">Farm Management</div>
+          <div class="nav-group-items">
+            <a href="#" data-section="farms">Farms</a>
+            <a href="#" data-section="crops">Crop Records</a>
+            <a href="#" data-section="plantings">Planting Activities</a>
+            <a href="#" data-section="inputs">Farm Inputs</a>
+            <a href="#" data-section="diseases">Disease Reports</a>
+            <a href="#" data-section="harvests">Harvests</a>
+            <a href="#" data-section="inventory">Inventory</a>
+            <a href="#" data-section="weather">Weather Log</a>
+            <a href="#" data-section="visits">Extension Visits</a>
+            <a href="#" data-section="finance">Financial Records</a>
+          </div>
+        </div>
+
+        <div class="nav-group open">
+          <div class="nav-group-title">Point of Sale</div>
+          <div class="nav-group-items">
+            <a href="#" data-section="sales">Sales</a>
+            <a href="#" data-section="purchases">Purchases</a>
+          </div>
+        </div>
+
+        <div class="nav-group">
+          <div class="nav-group-title">Modules</div>
+          <div class="nav-group-items">
+            <a href="pos.html">Full POS</a>
+            <a href="farmer-portal.html">Farmer Portal</a>
+          </div>
+        </div>
+
+        <div class="nav-group">
+          <div class="nav-group-title">Account</div>
+          <div class="nav-group-items">
+            <a href="farmer-profile.html">My Profile</a>
+            <a href="#" data-logout>Logout</a>
+          </div>
+        </div>
+      </nav>
+    </aside>
+
+    <main class="main-area">
+      <div class="topbar">
+        <h1 id="pageTitle">Overview</h1>
+        <div>Welcome, <strong id="welcomeName">Farmer</strong></div>
+      </div>
+
+      <section id="sec-overview" class="content-section active">
+        <div class="stat-grid" id="overviewStats"></div>
+        <div class="card">
+          <h3>Quick Links</h3>
+          <p>Use the sidebar to manage your farms, crops, inputs, harvests, finances and more. The POS module ties sales and purchases directly into your farm records.</p>
+        </div>
+      </section>
+
+      <!-- Sections rendered dynamically by dashboard.js -->
+      <section id="sec-farms" class="content-section"></section>
+      <section id="sec-crops" class="content-section"></section>
+      <section id="sec-plantings" class="content-section"></section>
+      <section id="sec-inputs" class="content-section"></section>
+      <section id="sec-diseases" class="content-section"></section>
+      <section id="sec-harvests" class="content-section"></section>
+      <section id="sec-inventory" class="content-section"></section>
+      <section id="sec-weather" class="content-section"></section>
+      <section id="sec-visits" class="content-section"></section>
+      <section id="sec-finance" class="content-section"></section>
+      <section id="sec-sales" class="content-section"></section>
+      <section id="sec-purchases" class="content-section"></section>
+    </main>
+  </div>
+
+  <script src="js/api.js"></script>
+  <script src="js/dashboard.js"></script>
+</body>
+</html>

@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Point of Sale · FarmKonnect</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body data-page="pos">
+  <div class="app-shell">
+    <aside class="sidebar">
+      <a href="dashboard.html" class="logo">🌾 FarmKonnect POS</a>
+      <nav>
+        <div class="nav-group open">
+          <div class="nav-group-title">Point of Sale</div>
+          <div class="nav-group-items">
+            <a href="#" data-pos-section="dashboard" class="active">Dashboard</a>
+            <a href="#" data-pos-section="sales">Sales</a>
+            <a href="#" data-pos-section="products">Products</a>
+            <a href="#" data-pos-section="customers">Customers</a>
+            <a href="#" data-pos-section="purchases">Purchases</a>
+            <a href="#" data-pos-section="reports">Reports</a>
+            <a href="#" data-pos-section="settings">Settings</a>
+          </div>
+        </div>
+        <div class="nav-group">
+          <div class="nav-group-title">Account</div>
+          <div class="nav-group-items">
+            <a href="dashboard.html">Back to Dashboard</a>
+            <a href="#" data-logout>Logout</a>
+          </div>
+        </div>
+      </nav>
+    </aside>
+
+    <main class="main-area">
+      <div class="topbar">
+        <h1 id="posTitle">Dashboard</h1>
+        <div>Signed in as <strong id="posUser">User</strong></div>
+      </div>
+
+      <!-- ============ DASHBOARD ============ -->
+      <section id="pos-dashboard" class="content-section active">
+        <div class="stat-grid" id="posStats"></div>
+        <div class="card" style="margin-top:1.5rem;">
+          <h3>Recent Sales</h3>
+          <div id="recentSales"><p class="muted">Loading…</p></div>
+        </div>
+      </section>
+
+      <!-- ============ SALES ============ -->
+      <section id="pos-sales" class="content-section">
+        <div class="mb-1" style="display:flex;justify-content:space-between;align-items:center;gap:1rem;flex-wrap:wrap;">
+          <button class="btn-primary" id="addSaleBtn">+ New Sale</button>
+          <input type="search" id="salesFilter" placeholder="Filter sales…"
+                 style="padding:.5rem .75rem;border-radius:8px;border:1px solid var(--border);min-width:200px;">
+        </div>
+        <div id="salesTable"><p class="muted">Loading…</p></div>
+      </section>
+
+      <!-- ============ PRODUCTS ============ -->
+      <section id="pos-products" class="content-section">
+        <div class="mb-1" style="display:flex;justify-content:space-between;align-items:center;gap:1rem;flex-wrap:wrap;">
+          <button class="btn-primary" id="addProductBtn">+ New Product</button>
+          <input type="search" id="productsFilter" placeholder="Filter products…"
+                 style="padding:.5rem .75rem;border-radius:8px;border:1px solid var(--border);min-width:200px;">
+        </div>
+        <div id="productsTable"><p class="muted">Loading…</p></div>
+      </section>
+
+      <!-- ============ CUSTOMERS ============ -->
+      <section id="pos-customers" class="content-section">
+        <p class="muted">Customers are derived from your sales history. Add a sale to record a customer.</p>
+        <div class="mb-1" style="display:flex;justify-content:flex-end;">
+          <input type="search" id="customersFilter" placeholder="Filter customers…"
+                 style="padding:.5rem .75rem;border-radius:8px;border:1px solid var(--border);min-width:200px;">
+        </div>
+        <div id="customersTable"><p class="muted">Loading…</p></div>
+      </section>
+
+      <!-- ============ PURCHASES ============ -->
+      <section id="pos-purchases" class="content-section">
+        <div class="mb-1" style="display:flex;justify-content:space-between;align-items:center;gap:1rem;flex-wrap:wrap;">
+          <button class="btn-primary" id="addPurchaseBtn">+ New Purchase</button>
+          <input type="search" id="purchasesFilter" placeholder="Filter purchases…"
+                 style="padding:.5rem .75rem;border-radius:8px;border:1px solid var(--border);min-width:200px;">
+        </div>
+        <div id="purchasesTable"><p class="muted">Loading…</p></div>
+      </section>
+
+      <!-- ============ REPORTS ============ -->
+      <section id="pos-reports" class="content-section">
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:1rem;margin-bottom:1.5rem;">
+          <label>From
+            <input type="date" id="reportFrom" style="padding:.5rem;border-radius:8px;border:1px solid var(--border);">
+          </label>
+          <label>To
+            <input type="date" id="reportTo" style="padding:.5rem;border-radius:8px;border:1px solid var(--border);">
+          </label>
+          <div style="display:flex;align-items:flex-end;">
+            <button class="btn-primary" id="runReportBtn">Run Report</button>
+          </div>
+        </div>
+        <div class="stat-grid" id="reportsStats"></div>
+        <div class="card" style="margin-top:1.5rem;">
+          <h3>Sales by Product</h3>
+          <div id="reportsByProduct"><p class="muted">Run a report to see data.</p></div>
+        </div>
+      </section>
+
+      <!-- ============ SETTINGS ============ -->
+      <section id="pos-settings" class="content-section">
+        <div id="settingsArea"></div>
+      </section>
+    </main>
+  </div>
+
+  <script src="js/api.js"></script>
+  <script src="js/pos.js"></script>
+</body>
+</html>

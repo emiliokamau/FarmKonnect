@@ -37,6 +37,7 @@ def load_prices_from_csv(commodity: str | None = None, county: str | None = None
     if not path:
         logger.warning("No market CSV files found in %s", DATA_DIR)
         return []
+    path = Path(path)
     results: List[Dict[str, Any]] = []
     with path.open(newline="", encoding="utf-8") as f:
         reader = csv.DictReader(f)

@@ -1,249 +1,430 @@
-"""Django models for the Farmkonnect agricultural portal.
-
-This module defines the core relational schema, including:
-- Custom user model with role-based permissions.
-- Market price records for commodities per county.
-- Events (training sessions or grant opportunities).
-- Advisory requests used by the AI post‑harvest advisory service.
-
-All models use standard Django conventions and include helpful string
-representations and indexes for performant queries.
-"""
-
-from django.db import models
+import uuid
 from django.contrib.auth.models import AbstractUser
-from django.utils import timezone
-from django.core.validators import MinValueValidator
-from typing import Literal
+from django.db import models
+
+
+def gen_uuid():
+    return uuid.uuid4().hex[:12]
 
 
 class User(AbstractUser):
-    """Extended user model with role distinction.
+    """Custom user with phone-based OTP login."""
+    phone = models.CharField(max_length=20, unique=True, null=True, blank=True)
+    is_phone_verified = models.BooleanField(default=False)
+    otp_code = models.CharField(max_length=6, blank=True, null=True)
+    otp_created_at = models.DateTimeField(null=True, blank=True)
+    profile_completed = models.BooleanField(default=False)
 
-    Roles:
-        - ``farmer``: Regular farmer using the portal.
-        - ``officer``: County‑level agricultural extension officer.
-        - ``admin``: Platform administrators.
-    """
+    USERNAME_FIELD = "username"
+    REQUIRED_FIELDS = ["email", "phone"]
 
-    ROLE_CHOICES: list[tuple[Literal['farmer'], str], tuple[Literal['officer'], str], tuple[Literal['admin'], str]] = [
-        ("farmer", "Farmer"),
-        ("officer", "Extension Officer"),
-        ("admin", "Administrator"),
-    ]
-    role = models.CharField(max_length=10, choices=ROLE_CHOICES, default="farmer")
+    def __str__(self):
+        return self.username or self.phone or self.email
 
-    def is_farmer(self) -> bool:
-        return self.role == "farmer"
 
-    def is_officer(self) -> bool:
-        return self.role == "officer"
-
-    def __str__(self) -> str:
-        return f"{self.username} ({self.get_role_display()})"
-
+# ---------- Reference ----------
 
 class County(models.Model):
-    """Kenyan county reference data.
-
-    Stored as a separate model to enforce foreign‑key integrity and to allow
-    easy expansion (e.g., adding region codes).
-    """
-
-    name = models.CharField(max_length=50, unique=True)
+    name = models.CharField(max_length=100, unique=True)
+    code = models.CharField(max_length=10, blank=True)
 
     class Meta:
-        ordering = ["name"]
-        verbose_name = "County"
         verbose_name_plural = "Counties"
 
-    def __str__(self) -> str:
+    def __str__(self):
         return self.name
 
 
 class Commodity(models.Model):
-    """Supported agricultural commodities.
-
-    The ``code`` field holds a short identifier such as ``MAIZE``.
-    """
-
-    name = models.CharField(max_length=50)
-    code = models.CharField(max_length=10, unique=True)
+    name = models.CharField(max_length=100, unique=True)
+    unit = models.CharField(max_length=20, default="kg")
+    category = models.CharField(max_length=50, blank=True)
 
     class Meta:
-        ordering = ["name"]
-        verbose_name = "Commodity"
         verbose_name_plural = "Commodities"
 
-    def __str__(self) -> str:
+    def __str__(self):
         return self.name
 
 
 class MarketPrice(models.Model):
-    """Daily market price record for a commodity in a specific county.
-
-    ``date`` is stored without time information because the source APIs
-    provide daily aggregates.
-    """
-
     commodity = models.ForeignKey(Commodity, on_delete=models.CASCADE, related_name="prices")
     county = models.ForeignKey(County, on_delete=models.CASCADE, related_name="prices")
-    date = models.DateField(default=timezone.now)
-    wholesale_price = models.DecimalField(
-        max_digits=10, decimal_places=2, validators=[MinValueValidator(0)]
-    )
-    retail_price = models.DecimalField(
-        max_digits=10, decimal_places=2, validators=[MinValueValidator(0)]
-    )
+    price = models.DecimalField(max_digits=10, decimal_places=2)
+    date = models.DateField()
+    source = models.CharField(max_length=100, blank=True)
 
     class Meta:
-        unique_together = ("commodity", "county", "date")
-        indexes = [
-            models.Index(fields=["commodity", "county", "date"]),
-        ]
         ordering = ["-date"]
-        verbose_name = "Market Price"
-        verbose_name_plural = "Market Prices"
-
-    def __str__(self) -> str:
-        return f"{self.commodity.code} - {self.county.name} @ {self.date}"
-
-
-class Event(models.Model):
-    """Training sessions, workshops, or grant opportunities.
-
-    ``category`` distinguishes between educational events and financial grants.
-    """
-
-    CATEGORY_CHOICES: list[tuple[Literal['training'], str], tuple[Literal['grant'], str]] = [
-        ("training", "Training / Workshop"),
-        ("grant", "Grant Opportunity"),
-    ]
-
-    title = models.CharField(max_length=150)
-    description = models.TextField()
-    category = models.CharField(max_length=10, choices=CATEGORY_CHOICES)
-    start_date = models.DateField()
-    end_date = models.DateField()
-    location = models.CharField(max_length=150)
-    counties = models.ManyToManyField(County, related_name="events")
-    created_at = models.DateTimeField(auto_now_add=True)
-
-    class Meta:
-        ordering = ["-start_date"]
-        verbose_name = "Event"
-        verbose_name_plural = "Events"
-
-    def __str__(self) -> str:
-        return f"{self.title} ({self.get_category_display()})"
-
-
-class AdvisoryRequest(models.Model):
-    """User‑submitted request for AI post‑harvest advisory.
-
-    ``recommendation`` is populated by the AI service after processing.
-    ``price_snapshot`` stores a JSON‑serialised snapshot of the relevant
-    market prices at the time of evaluation.
-    """
-
-    farmer = models.ForeignKey(User, on_delete=models.CASCADE, limit_choices_to={"role": "farmer"})
-    commodity = models.ForeignKey(Commodity, on_delete=models.PROTECT)
-    quantity = models.DecimalField(max_digits=12, decimal_places=2, validators=[MinValueValidator(0)])
-    harvest_date = models.DateField()
-    storage_option = models.CharField(
-        max_length=20,
-        choices=[("immediate", "Sell Immediately"), ("store", "Store for Later")],
-        default="immediate",
-    )
-    created_at = models.DateTimeField(auto_now_add=True)
-    recommendation = models.TextField(blank=True, null=True)
-    price_snapshot = models.JSONField(blank=True, null=True)
-
-    class Meta:
-        ordering = ["-created_at"]
-        verbose_name = "Advisory Request"
-        verbose_name_plural = "Advisory Requests"
-
-    def __str__(self) -> str:
-        return f"Advisory #{self.id} for {self.farmer.username}"
-
-# Marketplace / E‑Commerce models
-
-class Product(models.Model):
-    """Agricultural product offered for sale by a farmer or officer."""
-    name = models.CharField(max_length=100)
-    description = models.TextField(blank=True)
-    price = models.DecimalField(max_digits=10, decimal_places=2, validators=[MinValueValidator(0)])
-    vendor = models.ForeignKey(User, on_delete=models.CASCADE, related_name='products')
-    created_at = models.DateTimeField(auto_now_add=True)
-
-    class Meta:
-        ordering = ["-created_at"]
-        verbose_name = "Product"
-        verbose_name_plural = "Products"
 
     def __str__(self):
-        return f"{self.name} (by {self.vendor.username})"
+        return f"{self.commodity} - {self.county} - {self.price}"
 
-class Listing(models.Model):
-    """A specific offering of a product with available quantity and optional custom price."""
-    product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name='listings')
-    quantity_available = models.DecimalField(max_digits=12, decimal_places=2, validators=[MinValueValidator(0)])
-    unit_price = models.DecimalField(max_digits=10, decimal_places=2, validators=[MinValueValidator(0)])
+
+# ---------- 1. Farmer Profile ----------
+
+class FarmerProfile(models.Model):
+    GENDER_CHOICES = [("M", "Male"), ("F", "Female"), ("O", "Other")]
+    LANGUAGE_CHOICES = [
+        ("en", "English"),
+        ("sw", "Kiswahili"),
+        ("ki", "Kikuyu"),
+        ("lu", "Luo"),
+        ("ka", "Kamba"),
+        ("luy", "Luhya"),
+    ]
+
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name="farmer_profile")
+    farmer_id = models.CharField(max_length=20, unique=True, default=gen_uuid)
+    national_id = models.CharField(max_length=20, blank=True)
+    full_name = models.CharField(max_length=150)
+    gender = models.CharField(max_length=1, choices=GENDER_CHOICES, blank=True)
+    date_of_birth = models.DateField(null=True, blank=True)
+
+    county = models.CharField(max_length=100, blank=True)
+    sub_county = models.CharField(max_length=100, blank=True)
+    ward = models.CharField(max_length=100, blank=True)
+    village = models.CharField(max_length=100, blank=True)
+    gps_latitude = models.DecimalField(max_digits=10, decimal_places=7, null=True, blank=True)
+    gps_longitude = models.DecimalField(max_digits=10, decimal_places=7, null=True, blank=True)
+
+    preferred_language = models.CharField(max_length=10, choices=LANGUAGE_CHOICES, default="en")
+    farmer_group = models.CharField(max_length=150, blank=True)
+    registration_date = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.farmer_id} · {self.full_name}"
+
+
+# ---------- 2. Farm ----------
+
+class Farm(models.Model):
+    SOIL_CHOICES = [
+        ("sandy", "Sandy"), ("loam", "Loam"), ("clay", "Clay"),
+        ("silt", "Silt"), ("peat", "Peat"), ("chalk", "Chalk"),
+    ]
+    OWNERSHIP_CHOICES = [
+        ("owned", "Owned"), ("leased", "Leased"),
+        ("family", "Family Land"), ("communal", "Communal"),
+    ]
+
+    farmer = models.ForeignKey(FarmerProfile, on_delete=models.CASCADE, related_name="farms")
+    name = models.CharField(max_length=150)
+    location = models.CharField(max_length=200, blank=True)
+    gps_latitude = models.DecimalField(max_digits=10, decimal_places=7, null=True, blank=True)
+    gps_longitude = models.DecimalField(max_digits=10, decimal_places=7, null=True, blank=True)
+    size = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    size_unit = models.CharField(max_length=10, default="acres")
+    soil_type = models.CharField(max_length=20, choices=SOIL_CHOICES, blank=True)
+    ownership_type = models.CharField(max_length=20, choices=OWNERSHIP_CHOICES, blank=True)
+    water_source = models.CharField(max_length=100, blank=True)
+    irrigation_available = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return self.name
+
+
+# ---------- 3. Crop Records ----------
+
+class CropRecord(models.Model):
+    farm = models.ForeignKey(Farm, on_delete=models.CASCADE, related_name="crops")
+    crop = models.CharField(max_length=100)
+    variety = models.CharField(max_length=100, blank=True)
+    planting_date = models.DateField(null=True, blank=True)
+    expected_harvest = models.DateField(null=True, blank=True)
+    area = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    area_unit = models.CharField(max_length=10, default="acres")
+    seed_source = models.CharField(max_length=150, blank=True)
+    notes = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.crop} @ {self.farm.name}"
+
+
+# ---------- 4. Planting Activities ----------
+
+class PlantingActivity(models.Model):
+    farm = models.ForeignKey(Farm, on_delete=models.CASCADE, related_name="plantings")
+    date = models.DateField()
+    crop = models.CharField(max_length=100)
+    seed_variety = models.CharField(max_length=100, blank=True)
+    area_planted = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    seed_quantity = models.CharField(max_length=100, blank=True)
+    planting_method = models.CharField(max_length=100, blank=True)
+    responsible_person = models.CharField(max_length=150, blank=True)
+    notes = models.TextField(blank=True)
+
+    class Meta:
+        ordering = ["-date"]
+
+    def __str__(self):
+        return f"Planting {self.crop} on {self.date}"
+
+
+# ---------- 5. Input Usage ----------
+
+class FarmInput(models.Model):
+    INPUT_TYPES = [
+        ("fertilizer", "Fertilizer"),
+        ("pesticide", "Pesticide"),
+        ("herbicide", "Herbicide"),
+        ("fungicide", "Fungicide"),
+        ("seed", "Seed"),
+        ("other", "Other"),
+    ]
+
+    farm = models.ForeignKey(Farm, on_delete=models.CASCADE, related_name="inputs")
+    name = models.CharField(max_length=150)
+    input_type = models.CharField(max_length=20, choices=INPUT_TYPES, default="fertilizer")
+    quantity = models.CharField(max_length=100, blank=True)
+    cost = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    application_date = models.DateField(null=True, blank=True)
+    crop = models.CharField(max_length=100, blank=True)
+    notes = models.TextField(blank=True)
+
+    class Meta:
+        ordering = ["-application_date"]
+
+    def __str__(self):
+        return f"{self.name} ({self.input_type})"
+
+
+# ---------- 6. Disease & Pest Reports ----------
+
+class DiseaseReport(models.Model):
+    SEVERITY = [("low", "Low"), ("medium", "Medium"), ("high", "High")]
+    STATUS = [("open", "Open"), ("treated", "Treated"), ("resolved", "Resolved")]
+
+    farm = models.ForeignKey(Farm, on_delete=models.CASCADE, related_name="diseases", null=True, blank=True)
+    date = models.DateField()
+    crop = models.CharField(max_length=100)
+    symptoms = models.TextField(blank=True)
+    photo_url = models.URLField(blank=True)
+    diagnosis = models.CharField(max_length=200, blank=True)
+    severity = models.CharField(max_length=10, choices=SEVERITY, default="low")
+    treatment = models.TextField(blank=True)
+    status = models.CharField(max_length=10, choices=STATUS, default="open")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-date"]
+
+    def __str__(self):
+        return f"{self.crop} · {self.diagnosis or 'undiagnosed'}"
+
+
+# ---------- 7. Harvest ----------
+
+class Harvest(models.Model):
+    GRADE_CHOICES = [("A", "Grade A"), ("B", "Grade B"), ("C", "Grade C")]
+
+    farm = models.ForeignKey(Farm, on_delete=models.CASCADE, related_name="harvests", null=True, blank=True)
+    crop = models.CharField(max_length=100)
+    harvest_date = models.DateField()
+    quantity = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    unit = models.CharField(max_length=20, default="kg")
+    grade = models.CharField(max_length=2, choices=GRADE_CHOICES, blank=True)
+    storage_facility = models.CharField(max_length=150, blank=True)
+    notes = models.TextField(blank=True)
+
+    class Meta:
+        ordering = ["-harvest_date"]
+
+    def __str__(self):
+        return f"{self.quantity} {self.unit} {self.crop}"
+
+
+# ---------- 8. Inventory ----------
+
+class InventoryItem(models.Model):
+    farm = models.ForeignKey(Farm, on_delete=models.SET_NULL, null=True, blank=True, related_name="inventory")
+    product = models.CharField(max_length=150)
+    quantity = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    unit = models.CharField(max_length=20, default="kg")
+    source_harvest = models.ForeignKey(Harvest, on_delete=models.SET_NULL, null=True, blank=True)
+    storage_location = models.CharField(max_length=150, blank=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"{self.product} ({self.quantity} {self.unit})"
+
+
+# ---------- 9. Sales (POS) ----------
+
+class Sale(models.Model):
+    PAYMENT_CHOICES = [("cash", "Cash"), ("mpesa", "M-Pesa"), ("card", "Card"), ("credit", "Credit")]
+
+    farmer = models.ForeignKey(FarmerProfile, on_delete=models.SET_NULL, null=True, blank=True, related_name="sales")
+    date = models.DateField()
+    product = models.CharField(max_length=150)
+    quantity = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    unit = models.CharField(max_length=20, default="kg")
+    price = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    amount = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    customer = models.CharField(max_length=150, blank=True)
+    payment_method = models.CharField(max_length=10, choices=PAYMENT_CHOICES, default="cash")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-date"]
+
+    def __str__(self):
+        return f"Sale {self.product} · KSh {self.amount}"
+
+
+# ---------- 10. Purchases ----------
+
+class Purchase(models.Model):
+    farmer = models.ForeignKey(FarmerProfile, on_delete=models.SET_NULL, null=True, blank=True, related_name="purchases")
+    item = models.CharField(max_length=150)
+    quantity = models.CharField(max_length=100, blank=True)
+    supplier = models.CharField(max_length=150, blank=True)
+    cost = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    purchase_date = models.DateField()
+    notes = models.TextField(blank=True)
+
+    class Meta:
+        ordering = ["-purchase_date"]
+
+    def __str__(self):
+        return f"{self.item} · KSh {self.cost}"
+
+
+# ---------- 11. Weather Log ----------
+
+class WeatherLog(models.Model):
+    farm = models.ForeignKey(Farm, on_delete=models.CASCADE, related_name="weather", null=True, blank=True)
+    date = models.DateField()
+    rainfall_mm = models.DecimalField(max_digits=6, decimal_places=2, default=0)
+    temperature_c = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
+    humidity_pct = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
+    notes = models.CharField(max_length=200, blank=True)
+
+    class Meta:
+        ordering = ["-date"]
+
+    def __str__(self):
+        return f"{self.date} · {self.rainfall_mm}mm"
+
+
+# ---------- 12. Extension Visits ----------
+
+class ExtensionVisit(models.Model):
+    farmer = models.ForeignKey(FarmerProfile, on_delete=models.CASCADE, related_name="visits", null=True, blank=True)
+    officer = models.CharField(max_length=150)
+    date = models.DateField()
+    recommendations = models.TextField(blank=True)
+    follow_up_date = models.DateField(null=True, blank=True)
+
+    class Meta:
+        ordering = ["-date"]
+
+    def __str__(self):
+        return f"{self.officer} · {self.date}"
+
+
+# ---------- 13. Financial Records ----------
+
+class FarmFinance(models.Model):
+    farmer = models.ForeignKey(FarmerProfile, on_delete=models.CASCADE, related_name="finances", null=True, blank=True)
+    date = models.DateField()
+    income = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    expenses = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    loans = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    insurance = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    subsidies = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    notes = models.TextField(blank=True)
+
+    class Meta:
+        ordering = ["-date"]
+
+    @property
+    def profit(self):
+        return float(self.income) - float(self.expenses)
+
+    def __str__(self):
+        return f"{self.date} · profit {self.profit}"
+
+
+# ---------- Marketplace / POS (existing) ----------
+
+class Product(models.Model):
+    name = models.CharField(max_length=200)
+    sku = models.CharField(max_length=64, unique=True, default=gen_uuid)
+    description = models.TextField(blank=True)
+    price = models.DecimalField(max_digits=10, decimal_places=2)
+    stock = models.IntegerField(default=0)
+    category = models.CharField(max_length=100, blank=True)
+    image_url = models.URLField(blank=True)
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
-    class Meta:
-        ordering = ["-created_at"]
-        verbose_name = "Listing"
-        verbose_name_plural = "Listings"
+    def __str__(self):
+        return self.name
+
+
+class Listing(models.Model):
+    owner = models.ForeignKey(User, on_delete=models.CASCADE, related_name="listings")
+    product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name="listings")
+    quantity = models.IntegerField(default=1)
+    price = models.DecimalField(max_digits=10, decimal_places=2)
+    county = models.ForeignKey(County, on_delete=models.SET_NULL, null=True, blank=True)
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
-        return f"Listing {self.id} for {self.product.name}"
+        return f"{self.product} ({self.owner})"
+
 
 class Order(models.Model):
-    """Purchase of a listing by a buyer."""
     STATUS_CHOICES = [
-        ("pending", "Pending"),
-        ("completed", "Completed"),
-        ("cancelled", "Cancelled"),
+        ("pending", "Pending"), ("paid", "Paid"), ("shipped", "Shipped"),
+        ("completed", "Completed"), ("cancelled", "Cancelled"),
     ]
-    buyer = models.ForeignKey(User, on_delete=models.CASCADE, related_name='orders')
-    listing = models.ForeignKey(Listing, on_delete=models.PROTECT, related_name='orders')
-    quantity = models.DecimalField(max_digits=12, decimal_places=2, validators=[MinValueValidator(0)])
-    total_price = models.DecimalField(max_digits=12, decimal_places=2, validators=[MinValueValidator(0)], blank=True)
-    status = models.CharField(max_length=10, choices=STATUS_CHOICES, default="pending")
+    customer = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name="orders")
+    customer_name = models.CharField(max_length=200, blank=True)
+    customer_phone = models.CharField(max_length=20, blank=True)
+    total = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="pending")
+    items = models.JSONField(default=list, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
-    class Meta:
-        ordering = ["-created_at"]
-        verbose_name = "Order"
-        verbose_name_plural = "Orders"
+    def __str__(self):
+        return f"Order #{self.id} - {self.total}"
+
+
+class Event(models.Model):
+    title = models.CharField(max_length=200)
+    description = models.TextField(blank=True)
+    location = models.CharField(max_length=200, blank=True)
+    start_date = models.DateTimeField()
+    end_date = models.DateTimeField(null=True, blank=True)
+    event_type = models.CharField(max_length=50, default="training")
+    is_active = models.BooleanField(default=True)
 
     def __str__(self):
-        return f"Order {self.id} by {self.buyer.username}"
+        return self.title
 
-    def save(self, *args, **kwargs):
-        if not self.total_price:
-            self.total_price = self.quantity * self.listing.unit_price
-        super().save(*args, **kwargs)
 
-# Push‑notification device token model
+class AdvisoryRequest(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="advisories")
+    subject = models.CharField(max_length=200)
+    message = models.TextField()
+    status = models.CharField(max_length=20, default="open")
+    response = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.user} - {self.subject}"
+
+
 class DeviceToken(models.Model):
-    """Stores FCM device registration tokens per user."""
-    PLATFORM_CHOICES = [
-        ("android", "Android"),
-        ("ios", "iOS"),
-        ("web", "Web"),
-    ]
-    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='device_tokens')
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="device_tokens")
     token = models.CharField(max_length=255, unique=True)
-    platform = models.CharField(max_length=10, choices=PLATFORM_CHOICES)
+    platform = models.CharField(max_length=20, default="web")
     created_at = models.DateTimeField(auto_now_add=True)
 
-    class Meta:
-        verbose_name = "Device Token"
-        verbose_name_plural = "Device Tokens"
-
     def __str__(self):
-        return f"{self.user.username} - {self.platform}"
+        return f"{self.user} - {self.platform}"
