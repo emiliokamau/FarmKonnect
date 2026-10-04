@@ -56,7 +56,7 @@ def notify_user(user: User, title: str, body: str) -> None:
         _send_to_fcm(dt.token, dt.platform, message)
 
 
-@shared_task(name="backend.notifications.send_price_spike")
+@shared_task(name="core_up.notifications.send_price_spike")
 def send_price_spike_notification(
     commodity_code: str, county_name: str, price: float, threshold: float
 ) -> None:

@@ -1,7 +1,7 @@
 import datetime
 from django.core.management.base import BaseCommand
 from django.utils import timezone
-from backend.models import (
+from core_up.models import (
     County, Commodity, MarketPrice, Event, Product, Listing, User
 )
 

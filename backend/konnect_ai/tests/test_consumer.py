@@ -7,7 +7,7 @@ from django.contrib.auth import get_user_model
 from django.test import TransactionTestCase
 from rest_framework.authtoken.models import Token
 
-from backend.models import FarmerProfile
+from core_up.models import FarmerProfile
 from konnect_ai.consumers import KonnectAIConsumer
 
 User = get_user_model()

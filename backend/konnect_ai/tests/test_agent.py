@@ -4,7 +4,7 @@ from unittest.mock import MagicMock, patch
 from django.test import TestCase
 from django.contrib.auth import get_user_model
 
-from backend.models import FarmerProfile, Farm, Sale
+from core_up.models import FarmerProfile, Farm, Sale
 from konnect_ai.agent import run_turn, detect_language
 from konnect_ai.models import ConversationSession, AuditLog
 from konnect_ai.gemini import GeminiClient

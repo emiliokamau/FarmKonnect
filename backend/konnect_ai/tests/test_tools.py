@@ -6,7 +6,7 @@ from django.test import TestCase
 from django.contrib.auth import get_user_model
 from django.db import IntegrityError
 
-from backend.models import (
+from core_up.models import (
     FarmerProfile,
     Farm,
     CropRecord,
@@ -132,7 +132,7 @@ class ToolsSecurityAndIsolationTests(TestCase):
         """If a database error occurs during write, transaction rolls back and no SMS is sent."""
         initial_count = Farm.objects.filter(farmer=self.profile_a).count()
 
-        with patch("backend.models.Farm.objects.create", side_effect=IntegrityError("DB write error")):
+        with patch("core_up.models.Farm.objects.create", side_effect=IntegrityError("DB write error")):
             try:
                 tools.add_farm(
                     self.user_a,

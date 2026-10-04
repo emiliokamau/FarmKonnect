@@ -6,7 +6,7 @@ from rest_framework import status
 from rest_framework.authtoken.models import Token
 from rest_framework.test import APITestCase
 
-from backend.models import FarmerProfile
+from core_up.models import FarmerProfile
 from konnect_ai.models import AuditLog, ConversationSession
 
 User = get_user_model()

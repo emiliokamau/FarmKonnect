@@ -18,16 +18,16 @@ class Command(BaseCommand):
                     self.stdout.write(self.style.SUCCESS("[pre_migrate] Clean database. Ready for migrations."))
                     return
 
-                cursor.execute("SELECT app, name FROM django_migrations WHERE app IN ('admin', 'backend');")
+                cursor.execute("SELECT app, name FROM django_migrations WHERE app IN ('admin', 'core_up', 'backend');")
                 records = set(cursor.fetchall())
 
                 has_admin = ("admin", "0001_initial") in records
-                has_backend = ("backend", "0001_initial") in records
+                has_core = ("core_up", "0001_initial") in records or ("backend", "0001_initial") in records
 
-                if has_admin and not has_backend:
+                if has_admin and not has_core:
                     self.stdout.write(self.style.WARNING(
                         "[pre_migrate] Detected InconsistentMigrationHistory: 'admin.0001_initial' "
-                        "was applied before 'backend.0001_initial'."
+                        "was applied before 'core_up.0001_initial'."
                     ))
                     vendor = connection.vendor
                     if vendor == "postgresql":

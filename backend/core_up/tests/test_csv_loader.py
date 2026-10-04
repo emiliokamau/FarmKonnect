@@ -4,8 +4,8 @@ import tempfile
 from datetime import datetime
 from django.conf import settings
 from django.test import SimpleTestCase
-import backend.csv_loader
-from backend.csv_loader import load_prices_from_csv
+import core_up.csv_loader
+from core_up.csv_loader import load_prices_from_csv
 
 
 class CsvLoaderTestCase(SimpleTestCase):
@@ -25,17 +25,17 @@ class CsvLoaderTestCase(SimpleTestCase):
 
         # Ensure the loader picks up this file as "latest"
         # Patch the internal helper to return our test file path
-        from backend.csv_loader import _latest_csv_path
+        from core_up.csv_loader import _latest_csv_path
         original = _latest_csv_path
         try:
             # monkeypatch by assigning
-            backend.csv_loader._latest_csv_path = lambda: temp_file
+            core_up.csv_loader._latest_csv_path = lambda: temp_file
             all_data = load_prices_from_csv()
             self.assertEqual(len(all_data), 2)
             self.assertEqual(all_data[0]['commodity'], 'MAIZE')
         finally:
             # Restore original function
-            backend.csv_loader._latest_csv_path = original
+            core_up.csv_loader._latest_csv_path = original
             if os.path.exists(temp_file):
                 os.remove(temp_file)
 

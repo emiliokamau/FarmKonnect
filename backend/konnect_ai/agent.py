@@ -5,7 +5,7 @@ from __future__ import annotations
 import logging
 from typing import Any, Dict, List, Tuple
 
-from backend.utils import send_sms
+from core_up.utils import send_sms
 from .audit import check_rate_limit, log_tool_call
 from .classifier import classify_intent
 from .gemini import GeminiClient

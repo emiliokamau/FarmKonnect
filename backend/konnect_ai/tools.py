@@ -9,7 +9,7 @@ from typing import Any, Dict, Optional
 from django.db import transaction
 from django.utils import timezone
 
-from backend.models import (
+from core_up.models import (
     FarmerProfile,
     Farm,
     CropRecord,

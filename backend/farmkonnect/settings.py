@@ -58,7 +58,7 @@ INSTALLED_APPS = [
     "django_filters",
     "channels",
 
-    "backend",
+    "core_up",
     "konnect_ai",
 ]
 
@@ -100,7 +100,7 @@ TEMPLATES = [
 WSGI_APPLICATION = "farmkonnect.wsgi.application"
 ASGI_APPLICATION = "farmkonnect.asgi.application"
 
-AUTH_USER_MODEL = "backend.User"
+AUTH_USER_MODEL = "core_up.User"
 
 # ------------------------------------------------------------------
 # Database Configuration (PostgreSQL in production, SQLite fallback)
