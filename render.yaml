@@ -3,7 +3,7 @@ services:
     name: farmkonnect
     runtime: python
     rootDir: backend
-    buildCommand: pip install -r requirements.txt && python manage.py pre_migrate && python manage.py migrate && python manage.py collectstatic --noinput
+    buildCommand: pip install -r requirements.txt && python manage.py pre_migrate && python manage.py migrate && python create_admin.py && python manage.py collectstatic --noinput
     startCommand: daphne -b 0.0.0.0 -p $PORT farmkonnect.asgi:application
     envVars:
       - key: PYTHON_VERSION
@@ -12,3 +12,15 @@ services:
         value: "False"
       - key: DJANGO_SECRET_KEY
         generateValue: true
+      - key: SUPERUSER_USERNAME
+        sync: false
+      - key: SUPERUSER_EMAIL
+        sync: false
+      - key: SUPERUSER_PHONE
+        sync: false
+      - key: SUPERUSER_PASSWORD
+        sync: false
+      - key: SUPERUSER_FIRST_NAME
+        value: FarmKonnect
+      - key: SUPERUSER_LAST_NAME
+        value: Admin
