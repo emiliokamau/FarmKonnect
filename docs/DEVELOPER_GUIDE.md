@@ -84,11 +84,18 @@ python manage.py runserver 127.0.0.1:8000
 
 The application is then live at `http://127.0.0.1:8000/`.
 
-### Default Accounts
-- **Admin / Demo Account:**
-  - Phone: `0701519479`
-  - Password: `Admin1234`
-  - OTP in development: Printed in terminal / console output and returned in login API response for rapid testing.
+### Admin account
+
+The custom admin helper reads its credentials from environment variables. Set
+`SUPERUSER_USERNAME`, `SUPERUSER_EMAIL`, `SUPERUSER_PHONE`, and
+`SUPERUSER_PASSWORD` in `backend/.env`, then run:
+
+```powershell
+python create_admin.py
+```
+
+`SUPERUSER_FIRST_NAME` and `SUPERUSER_LAST_NAME` are optional. The password is
+never printed by the helper.
 
 
 ## 3. Environment Variables
@@ -333,4 +340,3 @@ cd backend
 python manage.py check
 python manage.py test tests
 ```
-

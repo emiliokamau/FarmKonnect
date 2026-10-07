@@ -6,10 +6,20 @@ django.setup()
 
 from core_up.models import User
 
-USERNAME = "emilio"
-EMAIL = "emilio@farmkonnect.local"
-PHONE = "0796526647"
-PASSWORD = "EmilioAdmin@2026"
+
+def required_env(name):
+    value = os.environ.get(name)
+    if not value:
+        raise RuntimeError(f"{name} environment variable is required.")
+    return value
+
+
+USERNAME = required_env("SUPERUSER_USERNAME")
+EMAIL = required_env("SUPERUSER_EMAIL")
+PHONE = required_env("SUPERUSER_PHONE")
+PASSWORD = required_env("SUPERUSER_PASSWORD")
+FIRST_NAME = os.environ.get("SUPERUSER_FIRST_NAME", "FarmKonnect")
+LAST_NAME = os.environ.get("SUPERUSER_LAST_NAME", "Admin")
 
 
 def create_superuser():
@@ -18,8 +28,8 @@ def create_superuser():
         defaults={
             "email": EMAIL,
             "phone": PHONE,
-            "first_name": "Emilio",
-            "last_name": "Admin",
+            "first_name": FIRST_NAME,
+            "last_name": LAST_NAME,
             "is_staff": True,
             "is_superuser": True,
             "is_phone_verified": True,
@@ -38,20 +48,19 @@ def create_superuser():
         user.profile_completed = True
         user.email = EMAIL
         user.phone = PHONE
-        user.first_name = "Emilio"
-        user.last_name = "Admin"
+        user.first_name = FIRST_NAME
+        user.last_name = LAST_NAME
         user.set_password(PASSWORD)
         user.save()
         print(f"⚠️ Superuser '{user.username}' already existed and was updated with full privileges.")
 
     print("\n" + "=" * 50)
-    print("SUPERUSER CREDENTIALS")
+    print("SUPERUSER CREATED")
     print("=" * 50)
     print(f"Username: {user.username}")
     print(f"Email: {user.email}")
     print(f"Phone: {user.phone}")
-    print(f"Password: {PASSWORD}")
-    print("Gender: Male")
+    print("Password: loaded from SUPERUSER_PASSWORD")
     print("\nAccess Levels:")
     print("✅ is_staff: True")
     print("✅ is_superuser: True")
