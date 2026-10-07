@@ -4,7 +4,7 @@ import base64
 from unittest.mock import MagicMock, patch
 from channels.testing import WebsocketCommunicator
 from django.contrib.auth import get_user_model
-from django.test import TransactionTestCase
+from django.test import TransactionTestCase, override_settings
 from rest_framework.authtoken.models import Token
 
 from core_up.models import FarmerProfile
@@ -80,6 +80,7 @@ class VoiceConsumerTests(TransactionTestCase):
 
         await communicator.disconnect()
 
+    @override_settings(GEMINI_API_KEY="")
     async def test_audio_chunk_and_turn_completion(self):
         """Sending audio_chunk with commit triggers STT -> agent -> TTS -> turn_complete."""
         communicator = WebsocketCommunicator(
@@ -117,6 +118,50 @@ class VoiceConsumerTests(TransactionTestCase):
         self.assertIn("reply_text", received_types)
         self.assertIn("audio_chunk", received_types)
         self.assertIn("turn_complete", received_types)
+
+        await communicator.disconnect()
+
+    @patch("konnect_ai.consumers.run_turn")
+    async def test_browser_transcript_reaches_agent_and_returns_reply(self, mock_run_turn):
+        mock_run_turn.return_value = {
+            "reply": "Water the plants early in the morning.",
+            "reply_en": "Water the plants early in the morning.",
+            "intent": "FMS",
+            "tool_calls": [],
+            "sms_sent": False,
+        }
+        communicator = WebsocketCommunicator(
+            KonnectAIConsumer.as_asgi(),
+            f"/ws/konnect-ai/?token={self.token.key}",
+        )
+        connected, _ = await communicator.connect()
+        self.assertTrue(connected)
+        await communicator.receive_json_from(timeout=5)
+
+        await communicator.send_json_to({
+            "type": "text_turn",
+            "text": "How should I water tomatoes?",
+            "page": "dashboard",
+        })
+
+        received = []
+        for _ in range(6):
+            message = await communicator.receive_json_from(timeout=5)
+            received.append(message)
+            if message.get("type") == "ai_text_local":
+                break
+
+        self.assertEqual(received[0]["type"], "user_transcript")
+        self.assertEqual(received[0]["text"], "How should I water tomatoes?")
+        self.assertTrue(any(
+            message.get("type") == "ai_text_local"
+            and message.get("text") == "Water the plants early in the morning."
+            for message in received
+        ))
+        self.assertEqual(
+            mock_run_turn.call_args.kwargs["user_text_local"],
+            "How should I water tomatoes?",
+        )
 
         await communicator.disconnect()
 

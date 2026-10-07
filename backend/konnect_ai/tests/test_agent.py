@@ -81,6 +81,7 @@ class AgentTurnTests(TestCase):
 
         # Check turn results
         self.assertEqual(turn["intent"], "POS")
+        self.assertIn("Recorded sale of", turn["reply_en"])
         self.assertTrue(turn["sms_sent"])
         self.assertEqual(len(turn["tool_calls"]), 1)
         self.assertTrue(turn["tool_calls"][0]["ok"])
@@ -97,6 +98,48 @@ class AgentTurnTests(TestCase):
         self.assertTrue(
             AuditLog.objects.filter(user=self.user, tool_name="record_sale", ok=True).exists()
         )
+
+    def test_tool_backed_reply_uses_database_result_not_model_claim(self):
+        mock_gemini = MagicMock(spec=GeminiClient)
+        mock_gemini.chat.return_value = (
+            "You have 99 farms.",
+            [{"name": "list_farms", "args": {}}],
+        )
+        self.session.transcript = [
+            {"role": "user", "text": "Hello"},
+            {"role": "assistant", "text": "How can I help?"},
+        ]
+        self.session.save(update_fields=["transcript"])
+
+        turn = run_turn(
+            session=self.session,
+            user_text_local="Show me my farms",
+            lang="en",
+            page="dashboard",
+            gemini_client=mock_gemini,
+        )
+
+        self.assertIn("Kiambu Shamba", turn["reply_en"])
+        self.assertNotIn("99", turn["reply_en"])
+        self.assertEqual(
+            mock_gemini.chat.call_args.kwargs["history"],
+            self.session.transcript[:2],
+        )
+
+    def test_personal_data_question_without_read_tool_does_not_guess(self):
+        mock_gemini = MagicMock(spec=GeminiClient)
+        mock_gemini.chat.return_value = ("You have 12 farms.", [])
+
+        turn = run_turn(
+            session=self.session,
+            user_text_local="How many farms do I have?",
+            lang="en",
+            page="dashboard",
+            gemini_client=mock_gemini,
+        )
+
+        self.assertIn("can't verify", turn["reply_en"])
+        self.assertNotIn("12", turn["reply_en"])
 
     def test_language_roundtrip_swahili(self):
         """Swahili input should return localized Swahili reply."""

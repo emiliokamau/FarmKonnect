@@ -31,10 +31,95 @@ SAFETY & CONFIRMATION:
 - ONLY call the write tool with confirm=True after the farmer has clearly agreed ('yes', 'ndio', 'sawa', 'go ahead', 'save it', 'record it').
 - Never delete records. Never ask for or record passwords or payment PINs.
 
+FACTUAL ACCURACY:
+- Treat database results as the only source of truth for this farmer's profile, farms, crops, sales, stock, weather logs, and market prices.
+- When asked about saved records or current/local measurements, call the matching read tool before stating any values. If no tool result is available, say you cannot verify it; never guess or estimate.
+- Do not invent diagnoses, pesticide names, application rates, market prices, weather, or claims about Kenyan regulations. For crop diagnosis, ask for the crop and symptoms and describe uncertainty. For chemical use, direct the farmer to the product label or a qualified extension officer.
+- A tool call is not proof that an action succeeded. Only claim a change when the server reports that it was saved.
+
 ROUTING & BEHAVIOR:
 - The server provides the detected intent (FMS, POS, or GENERAL) and relevant farm context.
 - When you execute a write tool, conclude your response with a short reassuring confirmation of what changed. The server will automatically dispatch an SMS confirmation.
 """
+
+READ_TOOL_LABELS = {
+    "get_farmer_profile": "farmer profile",
+    "list_farms": "farm records",
+    "list_crops": "crop records",
+    "list_recent_harvests": "harvest records",
+    "list_open_disease_reports": "open disease reports",
+    "get_market_price": "market price records",
+    "get_weather_history": "weather records",
+    "list_recent_sales": "sales records",
+    "list_low_stock_products": "low-stock product records",
+    "list_customers": "customer records",
+    "list_recent_purchases": "purchase records",
+}
+
+WRITE_TOOL_NAMES = {
+    "add_farm", "add_crop", "log_planting", "log_input", "log_harvest",
+    "record_disease", "request_advisory", "record_sale", "record_purchase",
+    "update_inventory",
+}
+
+
+def _format_grounded_read(tool_name: str, result: Dict[str, Any]) -> str:
+    """Render only values returned by an owner-scoped read tool."""
+    label = READ_TOOL_LABELS[tool_name]
+    summary = result.get("summary_en") or ""
+    if not result.get("ok"):
+        return f"I couldn't verify your {label}. {summary}".strip()
+
+    data = result.get("data")
+    if data is None:
+        return f"I couldn't verify your {label}; no saved data was returned."
+
+    if isinstance(data, list):
+        if not data:
+            return f"I checked your {label}; no matching records are currently saved."
+        rows = []
+        for record in data[:5]:
+            if not isinstance(record, dict):
+                rows.append(str(record))
+                continue
+            fields = [
+                f"{key.replace('__', ' ').replace('_', ' ')}: {value}"
+                for key, value in record.items()
+                if key not in {"id", "phone", "farmer_id"} and value not in (None, "")
+            ]
+            if fields:
+                rows.append(", ".join(fields))
+        if not rows:
+            return f"I checked your {label}; no record details were available."
+        result_text = f"Your {label} show: " + "; ".join(rows) + "."
+        if len(data) > len(rows):
+            result_text += f" I showed {len(rows)} of {len(data)} returned records."
+        return result_text
+
+    if isinstance(data, dict):
+        fields = [
+            f"{key.replace('__', ' ').replace('_', ' ')}: {value}"
+            for key, value in data.items()
+            if key not in {"id", "phone", "farmer_id"} and value not in (None, "")
+        ]
+        if fields:
+            return f"Your {label} show " + ", ".join(fields) + "."
+
+    return summary or f"I couldn't verify your {label}."
+
+
+def _requires_read_evidence(text: str) -> bool:
+    """Identify requests for farmer-specific or current market facts."""
+    normalized = text.lower()
+    evidence_phrases = (
+        "my farm", "my farms", "my crops", "my harvest", "my sales",
+        "my stock", "my inventory", "my purchases", "my customers",
+        "my profile", "what have i recorded", "what did i record",
+        "how many farms", "how many crops", "how much did i sell",
+        "market price", "current price", "today's price", "price of",
+        "my weather records", "weather history", "rainfall recorded",
+    )
+    return any(phrase in normalized for phrase in evidence_phrases)
 
 
 def summarize_farmer_data(user) -> str:
@@ -139,6 +224,7 @@ def run_turn(
         last_turns=memory.get_last_turns(3),
         farmer_summary=summarize_farmer_data(user),
         gemini_client=client,
+        prefer_local=True,
     )
     intent = classification.get("intent", "GENERAL")
     confidence = classification.get("confidence", 0.9)
@@ -174,7 +260,7 @@ def run_turn(
     # 5. Call Gemini
     reply_en, tool_calls = client.chat(
         system=SYSTEM_PROMPT,
-        history=memory.history,
+        history=memory.history[:-1],
         user=user_text_en,
         context=context,
         tools=tools,
@@ -183,17 +269,27 @@ def run_turn(
 
     # 6. Execute tool calls and log audit trail
     executed_results = []
+    grounded_replies = []
     sms_sent_any = False
 
     for call in tool_calls:
         res = execute_tool(user, call)
+        tool_name = call.get("name")
         executed_results.append({
-            "name": call.get("name"),
+            "name": tool_name,
             "args": call.get("args"),
             "ok": res.get("ok", False),
             "wrote": res.get("wrote", False),
             "summary": res.get("summary_en", ""),
         })
+
+        if tool_name in READ_TOOL_LABELS:
+            grounded_replies.append(_format_grounded_read(tool_name, res))
+        elif tool_name in WRITE_TOOL_NAMES:
+            grounded_replies.append(
+                res.get("summary_en")
+                or "I could not verify that the requested change was saved."
+            )
 
         # Log audit entry
         log_tool_call(
@@ -215,6 +311,11 @@ def run_turn(
                 if sms_res.get("ok"):
                     sms_sent_any = True
                     memory.mark_sms_sent()
+
+    if grounded_replies:
+        reply_en = " ".join(grounded_replies)
+    elif _requires_read_evidence(user_text_en):
+        reply_en = "I can't verify that from your saved records or the current data right now. I haven't guessed a value or changed your records."
 
     # 8. Translate response back to farmer's language
     reply_local = client.translate(reply_en, src="en", tgt="sw") if detected_lang == "sw" else reply_en

@@ -72,6 +72,13 @@ class ToolsSecurityAndIsolationTests(TestCase):
         self.assertTrue(res_a["ok"])
         self.assertEqual(len(res_a["data"]), 0)
 
+    def test_missing_market_price_is_not_replaced_with_estimate(self):
+        result = tools.get_market_price("Unlisted Test Commodity", county="Nakuru")
+
+        self.assertFalse(result["ok"])
+        self.assertIsNone(result["data"])
+        self.assertIn("No recorded market price", result["summary_en"])
+
     def test_owner_scoped_write_isolation(self):
         """Farmer A cannot add a crop to Farmer B's farm."""
         initial_crops_b = CropRecord.objects.filter(farm=self.farm_b).count()

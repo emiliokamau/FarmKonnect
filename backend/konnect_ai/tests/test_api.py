@@ -1,6 +1,7 @@
 """Tests for KonnectAI REST API endpoints and rate limiting."""
 
 from django.contrib.auth import get_user_model
+from django.test import override_settings
 from django.utils import timezone
 from rest_framework import status
 from rest_framework.authtoken.models import Token
@@ -35,6 +36,7 @@ class KonnectAIRestApiTests(APITestCase):
         )
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
 
+    @override_settings(GEMINI_API_KEY="")
     def test_authenticated_turn_returns_200_and_payload(self):
         """Authenticated turn request returns 200 with reply and session_id."""
         self.client.credentials(HTTP_AUTHORIZATION=f"Token {self.token.key}")

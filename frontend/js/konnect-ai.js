@@ -59,6 +59,8 @@ function mountKonnectAI(page, token) {
   let currentAudio = null;
   let isMuted = false;
   let animationFrameId = null;
+  let speechRecognition = null;
+  let browserSpeechMode = false;
 
   // Inject Floating Buttons Container
   const container = document.createElement("div");
@@ -263,18 +265,16 @@ function mountKonnectAI(page, token) {
     const msgEl = document.createElement("div");
     msgEl.className = `kai-msg kai-msg-${role}`;
 
-    let toolBadges = "";
-    if (meta.toolCalls && meta.toolCalls.length > 0) {
-      toolBadges = meta.toolCalls
-        .map(
-          (tc) => `
-          <div class="kai-tool-chip ${tc.ok ? 'success' : 'pending'}">
-            <span>${tc.ok ? '✓' : '⚠️'}</span>
-            <span>${escapeHtml(tc.summary || tc.name)}</span>
-          </div>`
-        )
-        .join("");
-    }
+    const visibleToolCalls = (meta.toolCalls || []).filter((tc) =>
+      tc.summary && !String(text || "").includes(tc.summary)
+    );
+    const toolBadges = visibleToolCalls
+      .map((tc) => `
+        <div class="kai-tool-chip ${tc.ok ? 'success' : 'pending'}">
+          <span>${tc.ok ? '✓' : '⚠️'}</span>
+          <span>${escapeHtml(tc.ok && tc.wrote ? "Saved" : tc.summary || tc.name)}</span>
+        </div>`)
+      .join("");
 
     let smsBadge = "";
     if (meta.smsSent) {
@@ -362,6 +362,12 @@ function mountKonnectAI(page, token) {
         track.enabled = !isMuted;
       });
     }
+    if (speechRecognition) {
+      if (isMuted) speechRecognition.stop();
+      else {
+        try { speechRecognition.start(); } catch {}
+      }
+    }
     muteIcon.textContent = isMuted ? "🔇" : "🎤";
     muteLabel.textContent = isMuted ? "Unmute" : "Mute";
   });
@@ -374,12 +380,24 @@ function mountKonnectAI(page, token) {
     transcriptBox.innerHTML = `<p class="kai-hint-sub">Connecting to KonnectAI voice service…</p>`;
     startWaveformVisualizer();
 
-    try {
-      mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-    } catch (err) {
-      callStatus.textContent = "Microphone access denied.";
-      transcriptBox.innerHTML = `<p class="kai-error-sub">Please allow microphone permissions to make a voice call.</p>`;
-      return;
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    browserSpeechMode = Boolean(SpeechRecognition);
+
+    if (!browserSpeechMode) {
+      if (!navigator.mediaDevices?.getUserMedia) {
+        callStatus.textContent = "Voice recognition unavailable.";
+        transcriptBox.innerHTML = `<p class="kai-error-sub">Use a recent Chrome or Edge browser for voice chat.</p>`;
+        isCallActive = false;
+        return;
+      }
+      try {
+        mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      } catch (err) {
+        callStatus.textContent = "Microphone access denied.";
+        transcriptBox.innerHTML = `<p class="kai-error-sub">Allow microphone access, then start the call again.</p>`;
+        isCallActive = false;
+        return;
+      }
     }
 
     // Connect WebSocket
@@ -390,13 +408,15 @@ function mountKonnectAI(page, token) {
       ws = new WebSocket(wsUrl);
     } catch (err) {
       callStatus.textContent = "Connection failed.";
+      isCallActive = false;
       return;
     }
 
     ws.onopen = () => {
       callStatus.textContent = "Connected · Listening…";
       ws.send(JSON.stringify({ type: "start", language: currentLang }));
-      initAudioCapture();
+      if (browserSpeechMode) initBrowserSpeechRecognition(SpeechRecognition);
+      else initAudioCapture();
     };
 
     ws.onmessage = (event) => {
@@ -417,6 +437,49 @@ function mountKonnectAI(page, token) {
         callStatus.textContent = "Call Ended.";
       }
     };
+  }
+
+  function initBrowserSpeechRecognition(SpeechRecognition) {
+    speechRecognition = new SpeechRecognition();
+    speechRecognition.continuous = true;
+    speechRecognition.interimResults = false;
+    speechRecognition.lang = currentLang === "sw" ? "sw-KE" : "en-US";
+
+    speechRecognition.onresult = (event) => {
+      for (let index = event.resultIndex; index < event.results.length; index++) {
+        const result = event.results[index];
+        if (!result.isFinal) continue;
+        const text = result[0]?.transcript?.trim();
+        if (text && ws?.readyState === WebSocket.OPEN) {
+          callStatus.textContent = "Processing…";
+          ws.send(JSON.stringify({ type: "text_turn", text, page }));
+        }
+      }
+    };
+
+    speechRecognition.onerror = (event) => {
+      callStatus.textContent = event.error === "not-allowed"
+        ? "Microphone access denied."
+        : "Speech recognition error.";
+      if (event.error === "not-allowed") {
+        transcriptBox.innerHTML = `<p class="kai-error-sub">Allow microphone access in your browser settings, then restart the call.</p>`;
+        endVoiceCall();
+      }
+    };
+
+    speechRecognition.onend = () => {
+      if (isCallActive && !isMuted && ws?.readyState === WebSocket.OPEN) {
+        try { speechRecognition.start(); } catch {}
+      }
+    };
+
+    try {
+      speechRecognition.start();
+      callStatus.textContent = "Active Call · Speak freely";
+      transcriptBox.innerHTML = `<p class="kai-hint-sub">Listening… Speak clearly, then pause for a response.</p>`;
+    } catch (err) {
+      callStatus.textContent = "Could not start speech recognition.";
+    }
   }
 
   function initAudioCapture() {
@@ -476,12 +539,26 @@ function mountKonnectAI(page, token) {
         </div>
       `;
       transcriptBox.scrollTop = transcriptBox.scrollHeight;
+      if (browserSpeechMode && window.speechSynthesis) {
+        if (speechRecognition) speechRecognition.stop();
+        window.speechSynthesis.cancel();
+        const utterance = new SpeechSynthesisUtterance(msg.text);
+        utterance.lang = currentLang === "sw" ? "sw-KE" : "en-US";
+        utterance.onend = () => {
+          if (isCallActive && !isMuted && speechRecognition) {
+            try { speechRecognition.start(); } catch {}
+          }
+        };
+        window.speechSynthesis.speak(utterance);
+      }
     } else if (msg.type === "tool_result") {
-      showCallToast(`✓ ${msg.summary || msg.name}`);
+      if (!msg.ok) showCallToast("The requested change was not saved.");
     } else if (msg.type === "sms_sent") {
       showCallToast(`📩 Confirmation SMS sent to ${msg.to || 'your phone'}`);
     } else if (msg.type === "audio_out") {
-      playAudioResponse(msg.data);
+      if (!browserSpeechMode) playAudioResponse(msg.data);
+    } else if (msg.type === "error") {
+      showCallToast(msg.detail || "Voice service error.");
     }
   }
 
@@ -521,6 +598,12 @@ function mountKonnectAI(page, token) {
 
   function endVoiceCall() {
     isCallActive = false;
+    if (speechRecognition) {
+      speechRecognition.onend = null;
+      try { speechRecognition.stop(); } catch {}
+      speechRecognition = null;
+    }
+    if (window.speechSynthesis) window.speechSynthesis.cancel();
     if (currentAudio) {
       currentAudio.pause();
       currentAudio = null;

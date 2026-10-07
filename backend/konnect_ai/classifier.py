@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 from typing import Any, Dict, List
 from .gemini import GeminiClient
 
@@ -16,9 +17,14 @@ def classify_intent(
     last_turns: List[Dict[str, Any]] | None = None,
     farmer_summary: str = "",
     gemini_client: GeminiClient | None = None,
+    prefer_local: bool = False,
 ) -> Dict[str, Any]:
-    """Classify the user utterance into FMS, POS, or GENERAL using Gemini with structured JSON output."""
+    """Classify the farmer's utterance into FMS, POS, or GENERAL using Gemini with structured JSON output."""
     client = gemini_client or GeminiClient()
+    if prefer_local:
+        local_result = _fallback_rule_classifier(user_text_en, page)
+        if local_result["confidence"] >= 0.6:
+            return local_result
 
     prompt = f"""
 You are an intent classifier for a Kenyan agricultural portal called FarmKonnect.
@@ -37,10 +43,6 @@ Classify the farmer's message into exactly one of three categories:
 3. GENERAL
    Signals: greetings, general questions about the app, ask for help,
    advisories, weather chat without farm context, broad inquiries.
-
-Context:
-- Current application page: {page} (Strong prior: 'pos' indicates POS; 'dashboard' indicates FMS)
-- Last conversation turns: {json.dumps(last_turns or [])}
 - Farmer's farm profile summary: {farmer_summary}
 
 Farmer's Message (in English): "{user_text_en}"
@@ -83,7 +85,7 @@ def _fallback_rule_classifier(text: str, page: str) -> Dict[str, Any]:
 
     # 1. Check greetings and general inquiries first
     greeting_words = ["hi", "hello", "habari", "mambo", "help", "nisaidie", "what can you do", "who are you"]
-    if any(k in t for k in greeting_words):
+    if any(re.search(rf"\b{re.escape(k)}\b", t) for k in greeting_words):
         strong_actions = ["nimeuza", "nimepanda", "uza", "panda", "nunua", "harvest"]
         if not any(a in t for a in strong_actions):
             return {"intent": "GENERAL", "confidence": 0.85, "reason": "Greeting or general help."}
@@ -103,7 +105,7 @@ def _fallback_rule_classifier(text: str, page: str) -> Dict[str, Any]:
     fms_hits = sum(1 for k in fms_keywords if k in t)
 
     # Page bias applied only if signals or context queries present
-    if pos_hits > 0 or fms_hits > 0 or any(k in t for k in ["receipt", "item", "record", "show", "summary"]):
+    if pos_hits > 0 or fms_hits > 0:
         if page == "pos":
             pos_hits += 1
         elif page == "dashboard":

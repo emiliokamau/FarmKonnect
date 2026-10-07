@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 import logging
-import re
+import time
 from typing import Any, Dict, List, Tuple
 import requests
 
@@ -64,11 +64,50 @@ class GeminiClient:
 
     def __init__(self, api_key: str | None = None, model: str | None = None):
         self.api_key = api_key or getattr(settings, "GEMINI_API_KEY", "")
-        self.model = model or getattr(settings, "GEMINI_MODEL", "gemini-1.5-flash")
+        self.model = model or getattr(settings, "GEMINI_MODEL", "gemini-3.5-flash-lite")
 
     def is_configured(self) -> bool:
         """Check if a valid API key is present."""
         return bool(self.api_key and self.api_key.strip() and self.api_key != "your-gemini-api-key")
+
+    def _generate_content(
+        self,
+        body: Dict[str, Any],
+        timeout: int,
+        model: str | None = None,
+    ) -> Dict[str, Any]:
+        """Call Gemini with bounded retries for temporary provider overloads."""
+        url = f"{GEMINI_ENDPOINT_BASE}/{model or self.model}:generateContent"
+        transient_statuses = {429, 500, 502, 503, 504}
+
+        for attempt in range(3):
+            try:
+                resp = requests.post(
+                    url,
+                    headers={"x-goog-api-key": self.api_key},
+                    json=body,
+                    timeout=timeout,
+                )
+                if resp.status_code == 429:
+                    error = (resp.json().get("error") or {})
+                    if (
+                        error.get("status") == "RESOURCE_EXHAUSTED"
+                        and "current quota" in error.get("message", "").lower()
+                    ):
+                        raise RuntimeError("Gemini project quota is exhausted")
+                if resp.status_code in transient_statuses and attempt < 2:
+                    time.sleep(0.5 * (2 ** attempt))
+                    continue
+                resp.raise_for_status()
+                return resp.json()
+            except requests.RequestException as exc:
+                status_code = exc.response.status_code if exc.response is not None else None
+                if status_code in transient_statuses and attempt < 2:
+                    time.sleep(0.5 * (2 ** attempt))
+                    continue
+                raise
+
+        raise RuntimeError("Gemini request attempts exhausted")
 
     def generate(self, prompt: str, model: str | None = None, json_mode: bool = False) -> str:
         """Generate content from a raw text prompt."""
@@ -77,8 +116,6 @@ class GeminiClient:
             return self._fallback_generate(prompt, json_mode=json_mode)
 
         active_model = model or self.model
-        url = f"{GEMINI_ENDPOINT_BASE}/{active_model}:generateContent?key={self.api_key}"
-
         body: Dict[str, Any] = {
             "contents": [{"parts": [{"text": prompt}]}],
             "generationConfig": {"temperature": 0.2},
@@ -87,9 +124,7 @@ class GeminiClient:
             body["generationConfig"]["responseMimeType"] = "application/json"
 
         try:
-            resp = requests.post(url, json=body, timeout=15)
-            resp.raise_for_status()
-            data = resp.json()
+            data = self._generate_content(body, timeout=15, model=active_model)
             candidates = data.get("candidates") or []
             if candidates:
                 parts = candidates[0].get("content", {}).get("parts", [])
@@ -97,7 +132,11 @@ class GeminiClient:
                     return parts[0].get("text", "")
             return "{}" if json_mode else ""
         except Exception as exc:
-            logger.warning("[GeminiClient] Remote call failed: %s. Using fallback.", exc)
+            status_code = getattr(getattr(exc, "response", None), "status_code", None)
+            logger.warning(
+                "[GeminiClient] Remote call failed (%s). Using fallback.",
+                f"HTTP {status_code}" if status_code else type(exc).__name__,
+            )
             return self._fallback_generate(prompt, json_mode=json_mode)
 
     def translate(self, text: str, src: str = "sw", tgt: str = "en") -> str:
@@ -138,8 +177,6 @@ class GeminiClient:
         if not self.is_configured():
             return self._fallback_chat(user, context, tools, intent)
 
-        url = f"{GEMINI_ENDPOINT_BASE}/{self.model}:generateContent?key={self.api_key}"
-
         contents: List[Dict[str, Any]] = []
 
         # Convert recent conversation turns
@@ -171,9 +208,7 @@ class GeminiClient:
             body["tools"] = [{"functionDeclarations": declarations}]
 
         try:
-            resp = requests.post(url, json=body, timeout=20)
-            resp.raise_for_status()
-            data = resp.json()
+            data = self._generate_content(body, timeout=20)
 
             candidates = data.get("candidates") or []
             if not candidates:
@@ -196,7 +231,11 @@ class GeminiClient:
 
             return reply_text.strip(), tool_calls
         except Exception as exc:
-            logger.warning("[GeminiClient] Chat API error: %s. Using rule-based fallback.", exc)
+            status_code = getattr(getattr(exc, "response", None), "status_code", None)
+            logger.warning(
+                "[GeminiClient] Chat API error (%s). Using rule-based fallback.",
+                f"HTTP {status_code}" if status_code else type(exc).__name__,
+            )
             return self._fallback_chat(user, context, tools, intent)
 
     # ----------------- Fallback Implementations -----------------
@@ -279,54 +318,9 @@ class GeminiClient:
         tools: List[Dict[str, Any]],
         intent: str,
     ) -> Tuple[str, List[Dict[str, Any]]]:
-        """Rule-based engine for offline/test environments."""
-        u_lower = user.lower()
-
-        # Confirmation affirmative check
-        if any(w in u_lower for w in ["yes", "ndio", "sawa", "go ahead", "save it", "confirm"]):
-            if "sale" in u_lower or intent == "POS":
-                return "Sale confirmed and saved to your POS records.", [{
-                    "name": "record_sale",
-                    "args": {"product": "Maize", "quantity": 5, "price": 2000, "amount": 10000, "unit": "bag", "confirm": True},
-                }]
-            if "plant" in u_lower or intent == "FMS":
-                return "Planting activity confirmed and logged.", [{
-                    "name": "log_planting",
-                    "args": {"crop": "Maize", "area_planted": 2, "confirm": True},
-                }]
-
-        # Detecting write intentions to ask for confirmation
-        if any(w in u_lower for w in ["sold", "nimeuza", "sell"]):
-            # Extract numbers if present
-            qty_match = re.search(r"(\d+)\s*(?:bags|gunia)", u_lower)
-            qty = int(qty_match.group(1)) if qty_match else 5
-            price_match = re.search(r"(?:for|kwa|at)\s*(\d+)", u_lower)
-            price = float(price_match.group(1)) if price_match else 2000.0
-
-            return (
-                f"You want to record a sale of {qty} bags of maize at KES {price:g} each (Total KES {qty * price:g}). Should I save this?",
-                [],
-            )
-
-        if any(w in u_lower for w in ["planted", "nimepanda"]):
-            return (
-                "You want to log planting of 2 acres of maize. Should I save this?",
-                [],
-            )
-
-        if any(w in u_lower for w in ["disease", "spots", "madoa", "ugonjwa"]):
-            return (
-                "You noticed brown leaf spots on your maize. Should I log a disease report?",
-                [],
-            )
-
-        if any(w in u_lower for w in ["price", "bei"]):
-            return (
-                "The current market price for maize in Nairobi is KES 58 per kg.",
-                [{"name": "get_market_price", "args": {"commodity": "Maize", "county": "Nairobi"}}],
-            )
-
+        """Return a safe service-unavailable message instead of fabricating facts or writes."""
         return (
-            "Hello! I am KonnectAI. I can help manage your farm records or point of sale. What would you like to do?",
+            "I can't verify that answer right now because the AI service is unavailable. "
+            "I have not changed your records. Please try again shortly.",
             [],
         )

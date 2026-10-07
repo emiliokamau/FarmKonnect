@@ -175,10 +175,10 @@ def get_market_price(commodity: str, county: str = "Nairobi", **kwargs) -> Dict[
         }
 
     return {
-        "ok": True,
+        "ok": False,
         "wrote": False,
-        "data": {"commodity": commodity, "price": 55.0, "unit": "kg", "county": county},
-        "summary_en": f"Estimated price for {commodity} is KES 55.0 per kg.",
+        "data": None,
+        "summary_en": f"No recorded market price was found for {commodity} in {county}.",
     }
 
 

@@ -74,6 +74,19 @@ class ClassifierTests(TestCase):
         self.assertAlmostEqual(res["confidence"], 0.95)
         self.assertEqual(res["reason"], "Planting activity detected.")
 
+    def test_clear_intent_uses_local_classifier_when_preferred(self):
+        mock_gemini = MagicMock(spec=GeminiClient)
+
+        result = classify_intent(
+            "I planted maize on my farm",
+            page="dashboard",
+            gemini_client=mock_gemini,
+            prefer_local=True,
+        )
+
+        self.assertEqual(result["intent"], "FMS")
+        mock_gemini.generate.assert_not_called()
+
     def test_low_confidence_triggers_clarification_no_tools(self):
         """Confidence < 0.6 must ask clarifying question and NOT execute tools."""
         mock_gemini = MagicMock(spec=GeminiClient)

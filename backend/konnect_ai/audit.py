@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import logging
 import re
+from datetime import date, datetime
+from decimal import Decimal
 from datetime import timedelta
 from typing import Any
 
@@ -39,6 +41,14 @@ def mask_pii(data: Any) -> Any:
             r"\1***\3",
             data,
         )
+    elif isinstance(data, Decimal):
+        return str(data)
+    elif isinstance(data, (date, datetime)):
+        return data.isoformat()
+    elif isinstance(data, bytes):
+        return "<binary_data_omitted>"
+    elif data is None or isinstance(data, (bool, int, float)):
+        return data
     return data
 
 

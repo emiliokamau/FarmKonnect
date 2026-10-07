@@ -104,6 +104,16 @@ class KonnectAIConsumer(AsyncJsonWebsocketConsumer):
             if content.get("commit") or content.get("end_utterance"):
                 await self._process_utterance(content.get("page", "dashboard"))
 
+        elif msg_type == "text_turn":
+            transcription = (content.get("text") or "").strip()
+            if transcription:
+                await self._process_transcription(
+                    transcription,
+                    content.get("page", "dashboard"),
+                )
+            else:
+                await self.send_json({"type": "error", "detail": "No speech was recognized."})
+
         elif msg_type == "end_utterance":
             await self._process_utterance(content.get("page", "dashboard"))
 
@@ -145,6 +155,11 @@ class KonnectAIConsumer(AsyncJsonWebsocketConsumer):
         if not transcription:
             await self.send_json({"type": "error", "detail": "Could not understand audio."})
             return
+
+        await self._process_transcription(transcription, page)
+
+    async def _process_transcription(self, transcription: str, page: str):
+        """Run a recognized voice transcript through the conversational agent."""
 
         # Send intermediate transcripts immediately so the UI shows them
         await self.send_json({

@@ -1,5 +1,8 @@
 """Tests for KonnectAI audit logging and PII masking compliance."""
 
+from datetime import date
+from decimal import Decimal
+
 from django.test import TestCase
 from django.contrib.auth import get_user_model
 
@@ -54,6 +57,11 @@ class AuditLoggingTests(TestCase):
 
         # Non-sensitive kept
         self.assertEqual(sanitized["farmer_name"], "Kipchoge")
+
+    def test_mask_pii_normalizes_database_numeric_and_date_values(self):
+        sanitized = mask_pii({"size": Decimal("3.50"), "date": date(2026, 10, 8)})
+
+        self.assertEqual(sanitized, {"size": "3.50", "date": "2026-10-08"})
 
     def test_log_tool_call_creates_entry_with_masked_args(self):
         """log_tool_call creates an immutable AuditLog entry with masked payload."""

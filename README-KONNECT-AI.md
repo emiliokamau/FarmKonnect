@@ -83,18 +83,18 @@ pip install -r requirements.txt
 ```
 
 ### Environment Variables
-Configure your credentials in `backend/.env` (or copy from `.env.example`):
+For local development, create `backend/.env`. Get a Gemini API key at
+https://aistudio.google.com/apikey. Do not commit this file or share the key.
 
 ```ini
-# Django Secret Key and Debug
-SECRET_KEY=your-django-secret-key
-DEBUG=False
-ALLOWED_HOSTS=farmkonnect.zirocreativeagency.co.ke,www.farmkonnect.zirocreativeagency.co.ke
+# Django local development
+DJANGO_DEBUG=True
+DJANGO_SECRET_KEY=local-dev-only-key
 
 # AI & LLM (Google Gemini)
-# Obtain from: https://aistudio.google.com/
+# Obtain from: https://aistudio.google.com/apikey
 GEMINI_API_KEY=your_gemini_api_key_here
-GEMINI_MODEL=gemini-1.5-flash
+GEMINI_MODEL=gemini-3.5-flash-lite
 
 # Voice STT & TTS (ElevenLabs)
 # Obtain from: https://elevenlabs.io/

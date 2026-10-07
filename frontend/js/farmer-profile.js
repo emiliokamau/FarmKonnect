@@ -43,6 +43,8 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     try {
       await window.API.saveProfile(data);
+      const user = window.getUser();
+      if (user) window.setUser({ ...user, profile_completed: true });
       msg.className = "form-msg success";
       msg.textContent = "Profile saved. Redirecting to dashboard…";
       setTimeout(() => (window.location.href = "dashboard.html"), 700);
