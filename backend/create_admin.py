@@ -6,6 +6,14 @@ Designed to be safe inside a Render build:
     a build requirement.
   * Output is plain ASCII, because build consoles are frequently cp1252 and any
     non-ASCII character raises UnicodeEncodeError and fails the build.
+  * If SUPERUSER_PHONE is already held by another account, the whole creation
+    used to abort with an IntegrityError and no admin was created at all. The
+    phone is now freed from that account (set to NULL - the holder keeps their
+    account) and the admin is retried with the requested number.
+
+Environment:
+  SUPERUSER_RECLAIM_PHONE=0   never take the number; create the admin without a
+                              phone instead (the holder is left untouched).
 
 The password is never printed.
 """
@@ -14,6 +22,7 @@ import os
 import sys
 
 import django
+from django.db import IntegrityError, transaction
 
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "farmkonnect.settings")
 django.setup()
@@ -27,43 +36,85 @@ def missing_vars():
     return [name for name in REQUIRED_VARS if not os.environ.get(name)]
 
 
+def free_phone_for(username):
+    """Return the phone to use for this admin, freeing it from any other holder.
+
+    ``User.phone`` is unique, so an account that already owns the number blocks
+    superuser creation entirely. The holder keeps their account; only the phone
+    is detached (the column is nullable).
+
+    Returns (phone, note). With SUPERUSER_RECLAIM_PHONE=0 the number is left
+    alone and the admin is created without one.
+    """
+    phone = os.environ["SUPERUSER_PHONE"]
+    holder = User.objects.filter(phone=phone).exclude(username=username).first()
+    if holder is None:
+        return phone, None
+
+    if os.environ.get("SUPERUSER_RECLAIM_PHONE", "1") == "0":
+        return None, (
+            f"phone {phone} is held by '{holder.username}' and SUPERUSER_RECLAIM_PHONE=0, "
+            f"so the admin will be created without a phone number."
+        )
+
+    holder.phone = None
+    holder.save(update_fields=["phone"])
+    return phone, (
+        f"phone {phone} was held by '{holder.username}' (id={holder.id}); "
+        f"detached from that account and assigned to the admin."
+    )
+
+
 def create_superuser():
     username = os.environ["SUPERUSER_USERNAME"]
     email = os.environ["SUPERUSER_EMAIL"]
-    phone = os.environ["SUPERUSER_PHONE"]
     password = os.environ["SUPERUSER_PASSWORD"]
     first_name = os.environ.get("SUPERUSER_FIRST_NAME", "FarmKonnect")
     last_name = os.environ.get("SUPERUSER_LAST_NAME", "Admin")
 
-    user, created = User.objects.get_or_create(
-        username=username,
-        defaults={
-            "email": email,
-            "phone": phone,
-            "first_name": first_name,
-            "last_name": last_name,
-            "is_staff": True,
-            "is_superuser": True,
-            "is_phone_verified": True,
-            "profile_completed": True,
-        },
-    )
+    phone, note = free_phone_for(username)
+    if note:
+        print(f"[create_admin] {note}")
+
+    defaults = {
+        "email": email,
+        "first_name": first_name,
+        "last_name": last_name,
+        "is_staff": True,
+        "is_superuser": True,
+        "is_phone_verified": True,
+        "profile_completed": True,
+    }
+    if phone:
+        defaults["phone"] = phone
+
+    try:
+        with transaction.atomic():
+            user, created = User.objects.get_or_create(username=username, defaults=defaults)
+            if not created:
+                user.is_staff = True
+                user.is_superuser = True
+                user.is_phone_verified = True
+                user.profile_completed = True
+                user.email = email
+                user.first_name = first_name
+                user.last_name = last_name
+                if phone:
+                    user.phone = phone
+            # Applied for both the created and updated paths.
+            user.set_password(password)
+            user.save()
+    except IntegrityError as exc:
+        # Never fail the build, and never leave a half-written account behind.
+        print(
+            f"[create_admin] Could not create the superuser: {exc} "
+            "If this is a uniqueness clash, run 'python manage.py admin_conflicts' to see the holder."
+        )
+        return None
 
     if created:
-        user.set_password(password)
-        user.save()
         print(f"[create_admin] Superuser '{user.username}' created successfully.")
     else:
-        user.is_staff = True
-        user.is_superuser = True
-        user.is_phone_verified = True
-        user.profile_completed = True
-        user.email = email
-        user.phone = phone
-        user.first_name = first_name
-        user.last_name = last_name
-        user.set_password(password)
-        user.save()
         print(f"[create_admin] Superuser '{user.username}' already existed and was updated.")
 
     print("=" * 50)

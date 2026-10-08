@@ -2,13 +2,22 @@ services:
   - type: web
     name: farmkonnect
     runtime: python
-    rootDir: backend
-    # create_admin.py exits 0 and prints a notice when SUPERUSER_* vars are
-    # absent; the `|| echo` guard also keeps any warning from failing the build.
+    # No rootDir: this service runs from the repository root, and the root
+    # wrappers (manage.py, asgi.py, wsgi.py, create_admin.py) each chdir into
+    # backend/ before importing farmkonnect.
+    #
+    # If you ever set Render's Root Directory to "backend" instead, then switch
+    # the commands below to the plain forms and drop the wrappers:
+    #   buildCommand: pip install -r requirements.txt && python manage.py pre_migrate && python manage.py migrate && python create_admin.py && python manage.py collectstatic --noinput
+    #   startCommand: daphne -b 0.0.0.0 -p $PORT farmkonnect.asgi:application
+    #
+    # Do NOT mix the two: "farmkonnect.asgi:application" only resolves from
+    # backend/, and fails from the root with "No module named farmkonnect".
+    #
     # NOTE: set DATABASE_URL on this service. Without it the app falls back to
     # SQLite on an ephemeral filesystem, so data is lost on every deploy.
-    buildCommand: pip install -r requirements.txt && python manage.py pre_migrate && python manage.py migrate && (python create_admin.py || echo "create_admin skipped") && python manage.py collectstatic --noinput
-    startCommand: daphne -b 0.0.0.0 -p $PORT farmkonnect.asgi:application
+    buildCommand: pip install -r requirements.txt && python manage.py pre_migrate && python manage.py migrate && python create_admin.py && python manage.py collectstatic --noinput
+    startCommand: daphne -b 0.0.0.0 -p $PORT asgi:application
     envVars:
       - key: PYTHON_VERSION
         value: 3.11.9
