@@ -3,7 +3,11 @@ services:
     name: farmkonnect
     runtime: python
     rootDir: backend
-    buildCommand: pip install -r requirements.txt && python manage.py pre_migrate && python manage.py migrate && python create_admin.py && python manage.py collectstatic --noinput
+    # create_admin.py exits 0 and prints a notice when SUPERUSER_* vars are
+    # absent; the `|| echo` guard also keeps any warning from failing the build.
+    # NOTE: set DATABASE_URL on this service. Without it the app falls back to
+    # SQLite on an ephemeral filesystem, so data is lost on every deploy.
+    buildCommand: pip install -r requirements.txt && python manage.py pre_migrate && python manage.py migrate && (python create_admin.py || echo "create_admin skipped") && python manage.py collectstatic --noinput
     startCommand: daphne -b 0.0.0.0 -p $PORT farmkonnect.asgi:application
     envVars:
       - key: PYTHON_VERSION

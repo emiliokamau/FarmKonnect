@@ -1,35 +1,47 @@
+"""Create or update the FarmKonnect superuser during deployment.
+
+Designed to be safe inside a Render build:
+  * If the SUPERUSER_* credentials are not configured, it prints a notice and
+    exits 0 instead of aborting the build. Admin creation is a convenience, not
+    a build requirement.
+  * Output is plain ASCII, because build consoles are frequently cp1252 and any
+    non-ASCII character raises UnicodeEncodeError and fails the build.
+
+The password is never printed.
+"""
+
 import os
+import sys
+
 import django
 
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "farmkonnect.settings")
 django.setup()
 
-from core_up.models import User
+from core_up.models import User  # noqa: E402
+
+REQUIRED_VARS = ("SUPERUSER_USERNAME", "SUPERUSER_EMAIL", "SUPERUSER_PHONE", "SUPERUSER_PASSWORD")
 
 
-def required_env(name):
-    value = os.environ.get(name)
-    if not value:
-        raise RuntimeError(f"{name} environment variable is required.")
-    return value
-
-
-USERNAME = required_env("SUPERUSER_USERNAME")
-EMAIL = required_env("SUPERUSER_EMAIL")
-PHONE = required_env("SUPERUSER_PHONE")
-PASSWORD = required_env("SUPERUSER_PASSWORD")
-FIRST_NAME = os.environ.get("SUPERUSER_FIRST_NAME", "FarmKonnect")
-LAST_NAME = os.environ.get("SUPERUSER_LAST_NAME", "Admin")
+def missing_vars():
+    return [name for name in REQUIRED_VARS if not os.environ.get(name)]
 
 
 def create_superuser():
+    username = os.environ["SUPERUSER_USERNAME"]
+    email = os.environ["SUPERUSER_EMAIL"]
+    phone = os.environ["SUPERUSER_PHONE"]
+    password = os.environ["SUPERUSER_PASSWORD"]
+    first_name = os.environ.get("SUPERUSER_FIRST_NAME", "FarmKonnect")
+    last_name = os.environ.get("SUPERUSER_LAST_NAME", "Admin")
+
     user, created = User.objects.get_or_create(
-        username=USERNAME,
+        username=username,
         defaults={
-            "email": EMAIL,
-            "phone": PHONE,
-            "first_name": FIRST_NAME,
-            "last_name": LAST_NAME,
+            "email": email,
+            "phone": phone,
+            "first_name": first_name,
+            "last_name": last_name,
             "is_staff": True,
             "is_superuser": True,
             "is_phone_verified": True,
@@ -38,37 +50,48 @@ def create_superuser():
     )
 
     if created:
-        user.set_password(PASSWORD)
+        user.set_password(password)
         user.save()
-        print(f"✅ Superuser '{user.username}' created successfully.")
+        print(f"[create_admin] Superuser '{user.username}' created successfully.")
     else:
         user.is_staff = True
         user.is_superuser = True
         user.is_phone_verified = True
         user.profile_completed = True
-        user.email = EMAIL
-        user.phone = PHONE
-        user.first_name = FIRST_NAME
-        user.last_name = LAST_NAME
-        user.set_password(PASSWORD)
+        user.email = email
+        user.phone = phone
+        user.first_name = first_name
+        user.last_name = last_name
+        user.set_password(password)
         user.save()
-        print(f"⚠️ Superuser '{user.username}' already existed and was updated with full privileges.")
+        print(f"[create_admin] Superuser '{user.username}' already existed and was updated.")
 
-    print("\n" + "=" * 50)
-    print("SUPERUSER CREATED")
+    print("=" * 50)
+    print("SUPERUSER READY")
     print("=" * 50)
     print(f"Username: {user.username}")
-    print(f"Email: {user.email}")
-    print(f"Phone: {user.phone}")
+    print(f"Email:    {user.email}")
+    print(f"Phone:    {user.phone}")
     print("Password: loaded from SUPERUSER_PASSWORD")
-    print("\nAccess Levels:")
-    print("✅ is_staff: True")
-    print("✅ is_superuser: True")
-    print("✅ is_phone_verified: True")
-    print("✅ profile_completed: True")
-    print("\nDjango Admin URL: /admin")
-    print("=" * 50 + "\n")
+    print("Access:   is_staff, is_superuser, is_phone_verified, profile_completed = True")
+    print("Admin URL: /admin/")
+    print("=" * 50)
+    return user
 
 
 if __name__ == "__main__":
-    create_superuser()
+    absent = missing_vars()
+    if absent:
+        print(
+            "[create_admin] Skipping superuser setup: missing "
+            + ", ".join(absent)
+            + ". Set these environment variables to create the admin account; "
+            "the build continues without it."
+        )
+        sys.exit(0)
+
+    try:
+        create_superuser()
+    except Exception as exc:  # never fail a deployment over admin provisioning
+        print(f"[create_admin] Notice: could not create the superuser ({exc}). Continuing.")
+        sys.exit(0)
