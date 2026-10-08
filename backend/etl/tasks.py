@@ -37,7 +37,7 @@ DATA_DIR.mkdir(parents=True, exist_ok=True)
 SUPPORTED_COMMODITIES = {"MAIZE", "BEANS", "TILAPIA"}
 KAMIS_URL = "https://kamis.kilimo.go.ke/"
 
-@shared_task(name="backend.etl.tasks.fetch_and_save_market_prices")
+@shared_task(name="etl.tasks.fetch_and_save_market_prices")
 def fetch_and_save_market_prices():
     """Scrape KAMIS and write a timestamped CSV file.
 

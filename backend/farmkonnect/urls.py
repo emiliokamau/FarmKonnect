@@ -10,7 +10,8 @@ FRONTEND_DIR = settings.FRONTEND_DIR
 urlpatterns = [
     # --- Admin & API ---
     path("admin/", admin.site.urls),
-    path("api/", include("backend.urls")),
+    path("api/konnect-ai/", include("konnect_ai.urls")),
+    path("api/", include("core_up.urls")),
 
     # --- Frontend HTML pages ---
     path("", TemplateView.as_view(template_name="index.html"), name="home"),
@@ -31,5 +32,6 @@ urlpatterns = [
 ]
 
 # Farmer-uploaded crop/disease photos. In production these are served by the
-# web server or object storage instead; serving here keeps local dev working.
-urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+# web server or object storage instead; this keeps local development working.
+if settings.DEBUG:
+    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

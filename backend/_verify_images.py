@@ -18,7 +18,7 @@ from django.test import Client, override_settings  # noqa: E402
 from django.utils import timezone  # noqa: E402
 from rest_framework.authtoken.models import Token  # noqa: E402
 
-from backend.models import (  # noqa: E402
+from core_up.models import (  # noqa: E402
     User, FarmerProfile, Farm, CropRecord, DiseaseReport, DiseasePhoto,
 )
 

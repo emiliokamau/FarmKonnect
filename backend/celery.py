@@ -12,7 +12,7 @@ app.autodiscover_tasks()
 # Example beat schedule (run every 6 hours)
 app.conf.beat_schedule = {
     'fetch-market-prices-every-6h': {
-        'task': 'backend.etl.tasks.fetch_and_save_market_prices',
+        'task': 'etl.tasks.fetch_and_save_market_prices',
         'schedule': 6 * 60 * 60,  # seconds
     },
 }

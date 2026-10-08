@@ -17,7 +17,7 @@ django.setup()
 from django.test import Client, override_settings  # noqa: E402
 from django.utils import timezone  # noqa: E402
 
-from backend.models import Event, EventRegistration  # noqa: E402
+from core_up.models import Event, EventRegistration  # noqa: E402
 
 # The test client talks to "testserver"; keep the project settings untouched.
 settings_override = override_settings(ALLOWED_HOSTS=["testserver", "localhost", "127.0.0.1"])

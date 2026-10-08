@@ -2,98 +2,644 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Dashboard · FarmKonnect</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <meta
+    name="description"
+    content="FarmKonnect — one connected platform for managing farms, agricultural business, markets and support."
+  >
+
+  <title>FarmKonnect | Agricultural Management Platform</title>
+
   <link rel="stylesheet" href="css/style.css">
   <link rel="stylesheet" href="css/images.css">
 </head>
+
 <body data-page="dashboard">
+
   <div class="app-shell">
+
+    <!-- =====================================================
+         SIDEBAR
+    ====================================================== -->
     <aside class="sidebar">
-      <a href="index.html" class="logo">🌾 FarmKonnect</a>
 
-      <nav>
+      <!-- BRAND -->
+      <a href="index.html" class="logo" aria-label="FarmKonnect home">
+        <span class="logo-mark">🌾</span>
+        <span class="logo-text">FarmKonnect</span>
+      </a>
+
+
+      <!-- =================================================
+           MAIN NAVIGATION
+      ================================================== -->
+      <nav class="main-navigation" aria-label="Main navigation">
+
+
+        <!-- =========================
+             DASHBOARD
+        ========================== -->
         <div class="nav-group open">
-          <div class="nav-group-title">Dashboard</div>
-          <div class="nav-group-items">
-            <a href="#" data-section="overview" class="active">Overview</a>
+
+          <div class="nav-group-title">
+            Dashboard
           </div>
+
+          <div class="nav-group-items">
+
+            <a
+              href="#"
+              class="nav-link active"
+              data-section="overview"
+            >
+              Overview
+            </a>
+
+          </div>
+
         </div>
 
+
+        <!-- =========================
+             MY FARM
+        ========================== -->
         <div class="nav-group open">
-          <div class="nav-group-title">Farm Management</div>
-          <div class="nav-group-items">
-            <a href="#" data-section="farms">Farms</a>
-            <a href="#" data-section="crops">Crop Records</a>
-            <a href="#" data-section="plantings">Planting Activities</a>
-            <a href="#" data-section="inputs">Farm Inputs</a>
-            <a href="#" data-section="diseases">Disease Reports</a>
-            <a href="#" data-section="harvests">Harvests</a>
-            <a href="#" data-section="inventory">Inventory</a>
-            <a href="#" data-section="weather">Weather Log</a>
-            <a href="#" data-section="visits">Extension Visits</a>
-            <a href="#" data-section="finance">Financial Records</a>
+
+          <div class="nav-group-title">
+            My Farm
           </div>
+
+          <div class="nav-group-items">
+
+            <a
+              href="#"
+              class="nav-link"
+              data-section="farms"
+            >
+              Farms
+            </a>
+
+            <a
+              href="#"
+              class="nav-link"
+              data-section="crops"
+            >
+              Crops
+            </a>
+
+            <a
+              href="#"
+              class="nav-link"
+              data-section="plantings"
+            >
+              Activities
+            </a>
+
+            <a
+              href="#"
+              class="nav-link"
+              data-section="inputs"
+            >
+              Farm Inputs
+            </a>
+
+            <a
+              href="#"
+              class="nav-link"
+              data-section="diseases"
+            >
+              Crop Health
+            </a>
+
+            <a
+              href="#"
+              class="nav-link"
+              data-section="harvests"
+            >
+              Harvests
+            </a>
+
+            <a
+              href="#"
+              class="nav-link"
+              data-section="inventory"
+            >
+              Inventory
+            </a>
+
+            <a
+              href="#"
+              class="nav-link"
+              data-section="weather"
+            >
+              Weather
+            </a>
+
+            <a
+              href="#"
+              class="nav-link"
+              data-section="visits"
+            >
+              Extension Visits
+            </a>
+
+            <a
+              href="#"
+              class="nav-link"
+              data-section="finance"
+            >
+              Financial Records
+            </a>
+
+          </div>
+
         </div>
 
+
+        <!-- =========================
+             SALES
+        ========================== -->
         <div class="nav-group open">
-          <div class="nav-group-title">Point of Sale</div>
-          <div class="nav-group-items">
-            <a href="#" data-section="sales">Sales</a>
-            <a href="#" data-section="purchases">Purchases</a>
+
+          <div class="nav-group-title">
+            Sales
           </div>
+
+          <div class="nav-group-items">
+
+            <a
+              href="#"
+              class="nav-link"
+              data-section="sales"
+            >
+              Sales
+            </a>
+
+            <a
+              href="#"
+              class="nav-link"
+              data-section="purchases"
+            >
+              Purchases
+            </a>
+
+            <a
+              href="pos.html"
+              class="nav-link"
+            >
+              POS
+            </a>
+
+          </div>
+
         </div>
 
+
+        <!-- =========================
+             MARKET & INSIGHTS
+        ========================== -->
+        <div class="nav-group open">
+
+          <div class="nav-group-title">
+            Market &amp; Insights
+          </div>
+
+          <div class="nav-group-items">
+
+            <a
+              href="market-prices.html"
+              class="nav-link"
+            >
+              Market Prices
+            </a>
+
+            <a
+              href="market-intelligence.html"
+              class="nav-link"
+            >
+              Market Intelligence
+            </a>
+
+            <a
+              href="crop-health.html"
+              class="nav-link"
+            >
+              Crop Health
+            </a>
+
+            <a
+              href="advisory.html"
+              class="nav-link"
+            >
+              Advisory
+            </a>
+
+            <a
+              href="weather.html"
+              class="nav-link"
+            >
+              Weather
+            </a>
+
+          </div>
+
+        </div>
+
+
+        <!-- =========================
+             SUPPORT
+        ========================== -->
+        <div class="nav-group open">
+
+          <div class="nav-group-title">
+            Support
+          </div>
+
+          <div class="nav-group-items">
+
+            <a
+              href="training.html"
+              class="nav-link"
+            >
+              Training
+            </a>
+
+            <a
+              href="opportunities.html"
+              class="nav-link"
+            >
+              Opportunities
+            </a>
+
+            <a
+              href="agricultural-officers.html"
+              class="nav-link"
+            >
+              Agricultural Officers
+            </a>
+
+          </div>
+
+        </div>
+
+
+        <!-- =========================
+             KONNECT AI
+        ========================== -->
+        <div class="nav-group konnect-ai-nav">
+
+          <div class="nav-group-items">
+
+            <a
+              href="#"
+              class="nav-link konnect-ai-link"
+              data-konnect-ai
+            >
+
+              <span class="konnect-ai-title">
+                KonnectAI
+              </span>
+
+              <small>
+                Ask your farm assistant
+              </small>
+
+            </a>
+
+          </div>
+
+        </div>
+
+
+        <!-- =========================
+             ACCOUNT
+        ========================== -->
         <div class="nav-group">
-          <div class="nav-group-title">Modules</div>
-          <div class="nav-group-items">
-            <a href="pos.html">Full POS</a>
-            <a href="farmer-portal.html">Farmer Portal</a>
+
+          <div class="nav-group-title">
+            Account
           </div>
+
+          <div class="nav-group-items">
+
+            <a
+              href="farmer-profile.html"
+              class="nav-link"
+            >
+              My Profile
+            </a>
+
+            <a
+              href="#"
+              class="nav-link"
+              data-logout
+            >
+              Logout
+            </a>
+
+          </div>
+
         </div>
 
-        <div class="nav-group">
-          <div class="nav-group-title">Account</div>
-          <div class="nav-group-items">
-            <a href="farmer-profile.html">My Profile</a>
-            <a href="#" data-logout>Logout</a>
-          </div>
-        </div>
       </nav>
+
     </aside>
 
-    <main class="main-area">
-      <div class="topbar">
-        <h1 id="pageTitle">Overview</h1>
-        <div>Welcome, <strong id="welcomeName">Farmer</strong></div>
-      </div>
 
-      <section id="sec-overview" class="content-section active">
-        <div class="stat-grid" id="overviewStats"></div>
-        <div class="card">
-          <h3>Quick Links</h3>
-          <p>Use the sidebar to manage your farms, crops, inputs, harvests, finances and more. The POS module ties sales and purchases directly into your farm records.</p>
+    <!-- =====================================================
+         MAIN AREA
+    ====================================================== -->
+    <main class="main-area">
+
+
+      <!-- =========================
+           TOP BAR
+      ========================== -->
+      <header class="topbar">
+
+        <div class="topbar-left">
+
+          <h1 id="pageTitle">
+            Overview
+          </h1>
+
+          <p class="page-subtitle">
+            Manage your farm and agricultural business.
+          </p>
+
         </div>
+
+
+        <div class="topbar-right">
+
+          <div class="user-welcome">
+
+            <span>
+              Welcome,
+            </span>
+
+            <strong id="welcomeName">
+              Farmer
+            </strong>
+
+          </div>
+
+        </div>
+
+      </header>
+
+
+      <!-- =================================================
+           OVERVIEW
+      ================================================== -->
+      <section
+        id="sec-overview"
+        class="content-section active"
+      >
+
+        <div
+          class="stat-grid"
+          id="overviewStats"
+        >
+          <!-- Dashboard statistics are loaded by dashboard.js -->
+        </div>
+
+
+        <div class="dashboard-grid">
+
+
+          <!-- QUICK ACTIONS -->
+          <div class="card">
+
+            <div class="card-header">
+
+              <div>
+
+                <h2>
+                  Quick Actions
+                </h2>
+
+                <p>
+                  Access the things you use most.
+                </p>
+
+              </div>
+
+            </div>
+
+
+            <div class="quick-actions">
+
+              <a
+                href="#"
+                data-section="farms"
+                class="quick-action"
+              >
+                <strong>My Farms</strong>
+                <span>Manage your farms</span>
+              </a>
+
+
+              <a
+                href="#"
+                data-section="crops"
+                class="quick-action"
+              >
+                <strong>Crops</strong>
+                <span>View your crops</span>
+              </a>
+
+
+              <a
+                href="#"
+                data-section="plantings"
+                class="quick-action"
+              >
+                <strong>Activities</strong>
+                <span>Manage farm activities</span>
+              </a>
+
+
+              <a
+                href="pos.html"
+                class="quick-action"
+              >
+                <strong>Open POS</strong>
+                <span>Record a sale</span>
+              </a>
+
+            </div>
+
+          </div>
+
+
+          <!-- KONNECT AI -->
+          <div class="card konnect-ai-card">
+
+            <div class="card-header">
+
+              <div>
+
+                <h2>
+                  KonnectAI
+                </h2>
+
+                <p>
+                  Your intelligent agricultural assistant.
+                </p>
+
+              </div>
+
+            </div>
+
+
+            <div class="konnect-ai-prompt">
+
+              <p>
+                Ask about your farm, crops, records or
+                agricultural activities.
+              </p>
+
+              <button
+                type="button"
+                class="btn btn-primary"
+                data-konnect-ai
+              >
+                Ask KonnectAI
+              </button>
+
+            </div>
+
+          </div>
+
+        </div>
+
+
+        <!-- RECENT ACTIVITY -->
+        <div class="card">
+
+          <div class="card-header">
+
+            <div>
+
+              <h2>
+                Recent Activity
+              </h2>
+
+              <p>
+                Your latest farm and business activity.
+              </p>
+
+            </div>
+
+          </div>
+
+
+          <div
+            id="recentActivity"
+            class="activity-list"
+          >
+            <!-- Populated by dashboard.js -->
+          </div>
+
+        </div>
+
       </section>
 
-      <!-- Sections rendered dynamically by dashboard.js -->
-      <section id="sec-farms" class="content-section"></section>
-      <section id="sec-crops" class="content-section"></section>
-      <section id="sec-plantings" class="content-section"></section>
-      <section id="sec-inputs" class="content-section"></section>
-      <section id="sec-diseases" class="content-section"></section>
-      <section id="sec-harvests" class="content-section"></section>
-      <section id="sec-inventory" class="content-section"></section>
-      <section id="sec-weather" class="content-section"></section>
-      <section id="sec-visits" class="content-section"></section>
-      <section id="sec-finance" class="content-section"></section>
-      <section id="sec-sales" class="content-section"></section>
-      <section id="sec-purchases" class="content-section"></section>
+
+      <!-- =================================================
+           MY FARM SECTIONS
+      ================================================== -->
+
+      <section
+        id="sec-farms"
+        class="content-section"
+      ></section>
+
+
+      <section
+        id="sec-crops"
+        class="content-section"
+      ></section>
+
+
+      <section
+        id="sec-plantings"
+        class="content-section"
+      ></section>
+
+
+      <section
+        id="sec-inputs"
+        class="content-section"
+      ></section>
+
+
+      <section
+        id="sec-diseases"
+        class="content-section"
+      ></section>
+
+
+      <section
+        id="sec-harvests"
+        class="content-section"
+      ></section>
+
+
+      <section
+        id="sec-inventory"
+        class="content-section"
+      ></section>
+
+
+      <section
+        id="sec-weather"
+        class="content-section"
+      ></section>
+
+
+      <section
+        id="sec-visits"
+        class="content-section"
+      ></section>
+
+
+      <section
+        id="sec-finance"
+        class="content-section"
+      ></section>
+
+
+      <!-- =================================================
+           SALES SECTIONS
+      ================================================== -->
+
+      <section
+        id="sec-sales"
+        class="content-section"
+      ></section>
+
+
+      <section
+        id="sec-purchases"
+        class="content-section"
+      ></section>
+
     </main>
+
   </div>
+
+
+  <!-- =====================================================
+       SCRIPTS
+  ====================================================== -->
 
   <script src="js/api.js"></script>
   <script src="js/image-picker.js"></script>
   <script src="js/dashboard.js"></script>
+  <script src="js/konnect-ai.js"></script>
+
 </body>
 </html>

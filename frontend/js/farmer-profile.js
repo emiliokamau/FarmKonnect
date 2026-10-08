@@ -32,12 +32,19 @@ document.addEventListener("DOMContentLoaded", async () => {
     const data = {};
     for (const el of form.elements) {
       if (el.name && el.name !== "phone_display") {
-        data[el.name] = el.value || null;
+        const val = (el.value || "").trim();
+        if (["gps_latitude", "gps_longitude", "date_of_birth"].includes(el.name)) {
+          data[el.name] = val || null;
+        } else {
+          data[el.name] = val;
+        }
       }
     }
 
     try {
       await window.API.saveProfile(data);
+      const user = window.getUser();
+      if (user) window.setUser({ ...user, profile_completed: true });
       msg.className = "form-msg success";
       msg.textContent = "Profile saved. Redirecting to dashboard…";
       setTimeout(() => (window.location.href = "dashboard.html"), 700);

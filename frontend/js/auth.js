@@ -11,6 +11,12 @@ function formatErr(err) {
     const d = err.data;
     if (typeof d === "string") return d;
     if (d.detail) return d.detail;
+    if (d.phone && Array.isArray(d.phone) && d.phone.some(m => m.includes("already registered"))) {
+      return "Phone number is already registered. Please log in.";
+    }
+    if (d.email && Array.isArray(d.email) && d.email.some(m => m.includes("already registered"))) {
+      return "Email is already registered. Please log in.";
+    }
     return Object.entries(d)
       .map(([k, v]) => `${k}: ${Array.isArray(v) ? v.join(", ") : v}`)
       .join(" | ");

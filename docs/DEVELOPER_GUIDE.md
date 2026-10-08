@@ -1,113 +1,106 @@
 # FarmKonnect Developer Guide
 
-FarmKonnect is a Django REST Framework portal with HTML, CSS, and vanilla JavaScript pages for agricultural information and services. It brings county and commodity market prices, agricultural events and grants, post-harvest advisory requests, and a marketplace data model into one application for farmers and agricultural extension teams.
+FarmKonnect is an all-in-one agricultural information and services platform built with Django, Django REST Framework, and a native HTML, CSS, and JavaScript frontend. It brings county and commodity market prices, agricultural events and grants, post-harvest advisory requests, Point of Sale (POS), and Farm Management (FMS) into a single unified application.
 
-This guide documents the repository as it exists today. It does not describe planned features or infrastructure that is not present in the codebase.
+This guide documents the repository as configured for local development.
 
 ## 1. System Architecture & Overview
 
 ### High-level architecture
 
 ```text
-Browser
+Browser (HTML5 / CSS3 / ES6 Fetch)
   |
-  | HTML/CSS/JavaScript UI
-  v
-http://localhost:8000/api/
+  +---> https://farmkonnect.zirocreativeagency.co.ke/ (index.html, login.html, dashboard.html, pos.html, events.html, etc.)
   |
-  | Django URL router -> Django REST Framework viewsets
-  v
-SQLite database + Django models
-  |
-  +-- market price and event data
-  +-- advisory request and recommendation data
-  +-- marketplace and device-token data
+  +---> https://farmkonnect.zirocreativeagency.co.ke/api/ (Django REST Framework endpoints)
+          |
+          v
+      Django URL router -> Django REST Framework viewsets
+          |
+          v
+      Database (PostgreSQL production / SQLite local) + Django models
+          +-- User & Farmer Profile
+          +-- Market prices & County/Commodity reference data
+          +-- Farm Management (Farms, Crops, Plantings, Inputs, Diseases, Harvests, Inventory)
+          +-- Point of Sale & Marketplace (Products, Listings, Orders)
+          +-- Advisory Requests & Events
 ```
 
-The frontend consists of Django-served HTML pages in `frontend/`, with CSS in `frontend/css/` and browser JavaScript in `frontend/js/`. API requests are made by the page scripts to `http://localhost:8000/api/`.
+The frontend uses standard HTML5, CSS3, and JavaScript located in `frontend/`, served by Nginx in production and by Django in local development.
+API calls are performed using `frontend/js/api.js` with the relative base URL `/api/` and Token authentication.
 
-The backend is a Django project in `backend/`. API routes are mounted below `/api/` with a Django REST Framework router. The local database configuration uses SQLite at `backend/db.sqlite3`.
-
-There is no Docker configuration, CI workflow, Render configuration, Vercel configuration, or other deployment definition in this repository.
+The backend is a Django project in `backend/`. API routes are mounted below `/api/` with a Django REST Framework router. The default local database is SQLite at `backend/db.sqlite3`; set `DATABASE_URL` (or `DB_NAME`) to use PostgreSQL.
 
 ### Implemented frontend areas
 
-- **Welcome page:** the root route displays `frontend/index.html`.
-- **Farmer portal:** `frontend/farmer-portal.html` provides the farmer-facing portal.
-- **Dashboard and POS:** `frontend/dashboard.html` and `frontend/pos.html` provide the authenticated application pages.
-- **Authentication pages:** login, registration, and OTP verification pages are served as standalone HTML files.
+- **Welcome page:** `https://farmkonnect.zirocreativeagency.co.ke/` or `index.html` displays the FarmKonnect portal landing page with dynamic service cards.
+- **Login & Registration:** `login.html`, `register.html`, and `verify-otp.html` handle user registration, phone/email password verification, and 6-digit OTP verification.
+- **Farmer Profile Setup:** `farmer-profile.html` allows farmers to save their details and location.
+- **Dashboard:** `dashboard.html` provides the main hub for overview metrics and Farm Management System (FMS), including crop and disease photo capture.
+- **Point of Sale (POS):** `pos.html` provides sales, product catalogs, customer tracking, and reports.
+- **Farmer Portal:** `farmer-portal.html` provides price comparison, market trends, AI disease diagnosis with photo upload, best practices, and officer communication.
+- **Global & Local Events:** `events.html` lists worldwide and nearby agricultural events with search, filters, and Join/Register actions.
 
-### User roles
+### User roles & Authentication
 
-The repository declares a `backend.User` model with these roles:
-
-| Role | Intended responsibility | Implemented access behavior |
-| --- | --- | --- |
-| `farmer` | Submit and view their own advisory requests; use farmer-facing portal features. | Advisory querysets are limited to the authenticated farmer. |
-| `officer` | County-level agricultural extension work and access to advisory outcomes. | Officers can access the advisory queryset. |
-| `admin` | Platform administration. | The role is defined in the model; Django admin permissions still apply separately. |
-
-All configured DRF endpoints use authentication by default. Most read-only reference endpoints explicitly require `IsAuthenticated`. Advisory endpoints add role-aware permissions. Note that `farmkonnect/settings.py` does not currently set `AUTH_USER_MODEL = "backend.User"`; verify and correct that configuration before relying on the custom role field in a new environment.
+The repository defines a custom user model `core_up.User` supporting phone and email login with OTP verification:
+- Default authentication: Token authentication (`Token <key>` header)
+- Anonymous users can view reference data (commodities, counties, prices, events, published products).
+- Authenticated farmers and extension officers can manage farms, crops, sales, and advisory requests.
 
 ## 2. Local Development Setup
 
 ### Prerequisites
 
 - Windows, macOS, or Linux
-- Python compatible with Django 5.1
+- Python 3.11+
 - Git
-- A local SQLite installation is not required separately because Python includes SQLite support.
 
-The repository currently declares these backend packages in `backend/requirements.txt`:
+### Running on Localhost
 
-```text
-django==5.1
-djangorestframework==3.15.2
-django-filter==24.3
-celery==5.4.0
-requests==2.32.3
+#### Option A: One-click Start Script (PowerShell / Windows)
+From the repository root:
+
+```powershell
+.\start.ps1
 ```
 
 The frontend has no Node.js dependency installation step. Its HTML, CSS, and vanilla JavaScript assets are served directly by Django.
 
-### Backend installation
+Or for Command Prompt:
 
+```cmd
+start.bat
+```
+
+#### Option B: Manual Setup
 From the repository root:
 
 ```powershell
 cd backend
-python -m venv .venv
-.\.venv\Scripts\Activate.ps1
-python -m pip install --upgrade pip
-python -m pip install -r requirements.txt
-```
-
-Run Django checks and initialize the database:
-
-```powershell
-python manage.py check
-python manage.py makemigrations
+python -m venv venv
+.\venv\Scripts\Activate.ps1
+pip install -r requirements.txt
 python manage.py migrate
-python manage.py createsuperuser
+python manage.py seed_data
+python manage.py runserver 127.0.0.1:8000
 ```
 
-Start the backend:
+The application is then live at `http://127.0.0.1:8000/`.
+
+### Admin account
+
+The custom admin helper reads its credentials from environment variables. Set
+`SUPERUSER_USERNAME`, `SUPERUSER_EMAIL`, `SUPERUSER_PHONE`, and
+`SUPERUSER_PASSWORD` in `backend/.env`, then run:
 
 ```powershell
-python manage.py runserver 8000
+python create_admin.py
 ```
 
-The backend is then available at `http://localhost:8000/`, with the API at `http://localhost:8000/api/` and the admin site at `http://localhost:8000/admin/`.
-
-### Current setup blockers
-
-The repository needs these code corrections before a clean first run:
-
-1. `backend/farmkonnect/urls.py` registers `ProductViewSet`, `ListingViewSet`, `OrderViewSet`, and `DeviceTokenViewSet` without importing them from `backend.views`.
-2. The repository has no committed Django migration files. Run `makemigrations` after the backend imports are corrected.
-3. Authentication endpoints are not implemented in the current router. A user must therefore be created through Django admin, the Django shell, or another existing provisioning process before authenticated API calls can be made.
-
-These are repository facts, not additional features to implement as part of this documentation.
+`SUPERUSER_FIRST_NAME` and `SUPERUSER_LAST_NAME` are optional. The password is
+never printed by the helper.
 
 ## 3. Environment Variables
 
@@ -148,10 +141,10 @@ Do not commit real secrets. The repository `.gitignore` excludes `.env` files an
 
 ### Base URL and authentication
 
-The local base URL is:
+The API base URL is:
 
 ```text
-http://localhost:8000/api/
+https://farmkonnect.zirocreativeagency.co.ke/api/
 ```
 
 DRF is configured with:
@@ -407,8 +400,9 @@ The repository currently has `master` checked out locally while the GitHub repos
 
 ### Frontend practices
 
-- Keep API access in the relevant page script under `frontend/js/`.
+- Keep API access in `frontend/js/api.js`, with page-specific behaviour in the matching script under `frontend/js/`.
 - Preserve the existing HTML and CSS structure when updating the standalone pages.
+- Use native HTML5, CSS3, and modern JavaScript (ES6+); all static assets (CSS, JS, images) are served directly by Django.
 - Handle API errors visibly in the page UI where possible.
 
 ### Validation checklist
@@ -416,11 +410,5 @@ The repository currently has `master` checked out locally while the GitHub repos
 ```powershell
 cd backend
 python manage.py check
-python manage.py test
-
-cd ..\frontend
-npm test -- --watchAll=false
-npm run build
+python manage.py test tests
 ```
-
-The commands above are the intended validation workflow. They may remain blocked until the missing frontend dependency, missing URL imports, and migration baseline are corrected.
