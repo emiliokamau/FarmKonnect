@@ -4,9 +4,9 @@ from rest_framework import routers
 from .views import (
     ProductViewSet, ListingViewSet, OrderViewSet, DeviceTokenViewSet,
     UserViewSet, CountyViewSet, CommodityViewSet, MarketPriceViewSet,
-    EventViewSet, AdvisoryRequestViewSet, MarketPriceCsvViewSet,
+    EventViewSet, EventRegistrationViewSet, AdvisoryRequestViewSet, MarketPriceCsvViewSet,
     FarmViewSet, CropRecordViewSet, PlantingActivityViewSet, FarmInputViewSet,
-    DiseaseReportViewSet, HarvestViewSet, InventoryItemViewSet, SaleViewSet,
+    DiseaseReportViewSet, DiseasePhotoViewSet, HarvestViewSet, InventoryItemViewSet, SaleViewSet,
     PurchaseViewSet, WeatherLogViewSet, ExtensionVisitViewSet, FarmFinanceViewSet,
     register_view, request_otp_view, verify_otp_view,
     login_password_view, logout_view, me_view, my_farmer_profile,
@@ -20,6 +20,7 @@ router.register(r"counties", CountyViewSet, basename="county")
 router.register(r"commodities", CommodityViewSet, basename="commodity")
 router.register(r"prices", MarketPriceViewSet, basename="marketprice")
 router.register(r"events", EventViewSet, basename="event")
+router.register(r"event-registrations", EventRegistrationViewSet, basename="event-registration")
 router.register(r"advisories", AdvisoryRequestViewSet, basename="advisoryrequest")
 
 # marketplace / POS
@@ -34,6 +35,7 @@ router.register(r"crops", CropRecordViewSet, basename="crop")
 router.register(r"plantings", PlantingActivityViewSet, basename="planting")
 router.register(r"farm-inputs", FarmInputViewSet, basename="farm-input")
 router.register(r"diseases", DiseaseReportViewSet, basename="disease")
+router.register(r"disease-photos", DiseasePhotoViewSet, basename="disease-photo")
 router.register(r"harvests", HarvestViewSet, basename="harvest")
 router.register(r"inventory", InventoryItemViewSet, basename="inventory")
 router.register(r"sales", SaleViewSet, basename="sale")

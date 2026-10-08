@@ -260,6 +260,24 @@ async function loadPriceComparison() {
 async function loadDisease() {
   const resultEl = document.getElementById("diseaseResult");
   resultEl.innerHTML = "";
+
+  // Photo picker: camera capture, gallery or drag-and-drop, with previews.
+  const host = document.getElementById("diseaseImagePicker");
+  if (host && !window.__diseasePicker) {
+    window.__diseasePicker = window.ImagePicker.mount(host, {
+      label: "Photos of the affected plant",
+      multiple: true,
+      max: 5,
+      stages: window.ImagePicker.DISEASE_STAGES,
+      help: "Up to 5 photos: a close-up of the affected part, the whole plant, and the wider field. " +
+            "Photos are shrunk on your phone before sending, so they upload faster.",
+      onChange: ({ message, kind }) => {
+        const note = document.getElementById("diseaseResult");
+        if (kind === "error") note.innerHTML = `<p class="muted">${escapeHtml(message)}</p>`;
+      },
+    });
+  }
+
   document.getElementById("analyzeDiseaseBtn").onclick = analyzeDisease;
   await loadMyDiseaseReports();
 }
@@ -274,76 +292,177 @@ async function loadMyDiseaseReports() {
 
     el.innerHTML = rows.length ? `
       <table class="data-table">
-        <thead><tr><th>Date</th><th>Crop</th><th>Diagnosis</th><th>Severity</th><th>Status</th></tr></thead>
+        <thead><tr>
+          <th>Photo</th><th>Date</th><th>Crop</th><th>Diagnosis</th>
+          <th>Severity</th><th>Status</th><th></th>
+        </tr></thead>
         <tbody>${rows.slice(0, 20).map(r => `
           <tr>
-            <td>${r.date}</td>
+            <td class="thumb-cell">${reportThumb(r)}</td>
+            <td>${escapeHtml(r.date)}</td>
             <td>${escapeHtml(r.crop)}</td>
-            <td>${escapeHtml(r.diagnosis || "—")}</td>
-            <td>${r.severity}</td>
-            <td>${r.status}</td>
+            <td>${r.diagnosis
+                  ? escapeHtml(r.diagnosis)
+                  : `<span class="badge badge-pending">Awaiting review</span>`}</td>
+            <td>${escapeHtml(r.severity)}</td>
+            <td>${escapeHtml(r.status)}</td>
+            <td>${r.image_src
+                  ? `<button class="btn-outline" data-view-report="${r.id}"
+                       style="padding:.25rem .6rem;font-size:.78rem;">View</button>`
+                  : ""}</td>
           </tr>`).join("")}
         </tbody>
       </table>` : `<p class="muted">No disease reports yet.</p>`;
+
+    el.querySelectorAll("[data-view-report]").forEach(b => {
+      b.addEventListener("click", () => {
+        const row = rows.find(x => String(x.id) === String(b.dataset.viewReport));
+        if (row) showReportPhotos(row);
+      });
+    });
   } catch (e) {
     el.innerHTML = `<p class="muted">Unable to load (${e.message}).</p>`;
   }
 }
 
-async function analyzeDisease() {
-  const file = document.getElementById("diseaseFile").files[0];
-  const crop = document.getElementById("diseaseCrop").value.trim();
-  const farmId = document.getElementById("diseaseFarm").value;
-  const out = document.getElementById("diseaseResult");
+/* Thumbnail for a report row, with a count badge when several photos exist. */
+function reportThumb(report) {
+  const src = report.image_src;
+  if (!src) return `<span class="muted">—</span>`;
+  const extra = report.photo_count > 1 ? `<span class="thumb-count">+${report.photo_count - 1}</span>` : "";
+  return `<span class="thumb-wrap">
+            <img src="${escapeHtml(src)}" alt="${escapeHtml(report.crop)} photo" loading="lazy">
+            ${extra}
+          </span>`;
+}
 
-  if (!file) {
-    out.innerHTML = `<p class="muted">Please choose an image first.</p>`;
-    return;
-  }
+/* Full set of photos for one report, opened in a lightbox. */
+function showReportPhotos(report) {
+  const photos = [report.image_src, ...(report.photos || []).map(p => p.image_src)].filter(Boolean);
+  if (!photos.length) return;
+
+  const backdrop = document.createElement("div");
+  backdrop.className = "modal-backdrop";
+  backdrop.style.cssText =
+    "position:fixed;inset:0;background:rgba(0,0,0,.72);display:flex;align-items:center;" +
+    "justify-content:center;z-index:120;padding:1rem;";
+  backdrop.innerHTML = `
+    <div style="background:#fff;border-radius:12px;max-width:820px;width:100%;max-height:92vh;overflow-y:auto;padding:1.25rem;">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:1rem;">
+        <h3 style="margin:0;">${escapeHtml(report.crop)} — ${photos.length} photo${photos.length === 1 ? "" : "s"}</h3>
+        <button class="btn-outline" id="closeReportPhotos" style="padding:.35rem .8rem;">Close</button>
+      </div>
+      <p class="muted" style="margin:.5rem 0 1rem;">
+        ${escapeHtml(report.diagnosis || "Awaiting review")}
+        ${report.treatment ? `· ${escapeHtml(report.treatment)}` : ""}
+      </p>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:.75rem;">
+        ${photos.map((src, i) => {
+          const stage = i === 0
+            ? (report.photo_stage_display || "")
+            : ((report.photos[i - 1] || {}).photo_stage || "");
+          return `<figure style="margin:0;">
+            <img src="${escapeHtml(src)}" alt="report photo ${i + 1}" loading="lazy"
+                 style="width:100%;border-radius:10px;border:1px solid var(--border);">
+            ${stage ? `<figcaption class="muted" style="font-size:.8rem;">${escapeHtml(stage)}</figcaption>` : ""}
+          </figure>`;
+        }).join("")}
+      </div>
+    </div>`;
+  document.body.appendChild(backdrop);
+  const close = () => backdrop.remove();
+  backdrop.querySelector("#closeReportPhotos").addEventListener("click", close);
+  backdrop.addEventListener("click", e => { if (e.target === backdrop) close(); });
+  document.addEventListener("keydown", function esc(e) {
+    if (e.key === "Escape") { close(); document.removeEventListener("keydown", esc); }
+  });
+}
+
+async function analyzeDisease() {
+  const out = document.getElementById("diseaseResult");
+  const crop = document.getElementById("diseaseCrop").value.trim();
+  const variety = document.getElementById("diseaseVariety").value.trim();
+  const growth = document.getElementById("diseaseGrowth").value.trim();
+  const affected = document.getElementById("diseaseAffected").value.trim();
+  const symptoms = document.getElementById("diseaseSymptoms").value.trim();
+  const farmId = document.getElementById("diseaseFarm").value;
+  const wantsAnalysis = document.getElementById("diseaseRequestAnalysis").checked;
+  const picker = window.__diseasePicker;
+
   if (!crop) {
     out.innerHTML = `<p class="muted">Please enter the crop name.</p>`;
     return;
   }
+  if (!picker || !picker.hasFiles()) {
+    out.innerHTML = `<p class="muted">Please add at least one photo of the affected plant.</p>`;
+    return;
+  }
 
-  out.innerHTML = `<p class="muted">Analyzing…</p>`;
+  const btn = document.getElementById("analyzeDiseaseBtn");
+  btn.disabled = true;
+  out.innerHTML = `<p class="muted">Uploading ${picker.files().length} photo(s)…</p>`;
 
-  // Simulated AI — in a real deployment you'd POST to a diagnosis endpoint
-  setTimeout(async () => {
-    const possible = ["Leaf Blight", "Powdery Mildew", "Rust", "Bacterial Wilt", "Aphid Infestation", "Healthy"];
-    const diagnosis = possible[Math.floor(Math.random() * possible.length)];
-    const severity =
-      diagnosis === "Healthy" ? "low" :
-      ["Rust", "Bacterial Wilt"].includes(diagnosis) ? "high" : "medium";
+  try {
+    const today = new Date().toISOString().slice(0, 10);
+
+    // Photos are stored first, so the report is never saved without its evidence.
+    const fd = new FormData();
+    fd.append("date", today);
+    fd.append("crop", crop);
+    fd.append("variety", variety);
+    fd.append("growth_stage", growth);
+    fd.append("affected_area", affected);
+    fd.append("symptoms", symptoms || "Reported via Farmer Portal disease detection.");
+    fd.append("status", "open");
+    if (farmId) fd.append("farm", farmId);
+    if (wantsAnalysis) fd.append("needs_analysis", "true");
+    picker.appendTo(fd, "image", "images");
+
+    const report = await window.API.diseases.create(fd);
+
+    // Any extra angles beyond the first go on as additional photos.
+    const extras = picker.files().slice(1);
+    if (extras.length) {
+      const extraFd = new FormData();
+      const stages = picker.selections.map(s => s.stage).slice(1);
+      extras.forEach(f => extraFd.append("images", f));
+      stages.forEach(s => extraFd.append("photo_stage", s || ""));
+      try {
+        await window.API.addDiseasePhotos(report.id, extraFd);
+      } catch (e) {
+        console.warn("Extra photos were not saved:", e);
+      }
+    }
+
+    if (wantsAnalysis && report.id) {
+      try { await window.API.analyseDisease(report.id); } catch (e) { console.warn(e); }
+    }
 
     out.innerHTML = `
       <div class="card result-card">
-        <h4>Likely Diagnosis: ${diagnosis}</h4>
-        <p><strong>Severity:</strong> ${severity}</p>
-        <p><strong>Suggested treatment:</strong> ${
-          diagnosis === "Healthy"
-            ? "No action needed — keep monitoring."
-            : "Apply an approved fungicide/insecticide, remove affected leaves, improve airflow, and consult an agricultural officer if symptoms persist."
-        }</p>
-        <p class="muted">A report has been saved to your farm records.</p>
+        <h4>Photos received — report #${report.id}</h4>
+        <p><strong>Crop:</strong> ${escapeHtml(crop)}${variety ? ` (${escapeHtml(variety)})` : ""}</p>
+        <p><strong>Photos attached:</strong> ${extras.length + 1}</p>
+        <p>${wantsAnalysis
+              ? "An agricultural officer or the diagnosis service will review the photos and record a diagnosis. " +
+                "You can see the outcome under <em>My Recent Reports</em>."
+              : "Saved to your farm records."}</p>
       </div>`;
 
-    // Persist the report to the backend
-    try {
-      const today = new Date().toISOString().slice(0, 10);
-      await window.API.diseases.create({
-        date: today,
-        crop,
-        farm: farmId || null,
-        diagnosis,
-        severity,
-        status: "open",
-        symptoms: "Reported via Farmer Portal disease detection.",
-      });
-      loadMyDiseaseReports();
-    } catch (e) {
-      console.warn("Could not save report:", e);
-    }
-  }, 1400);
+    if (picker.clear) picker.clear();
+    ["diseaseVariety", "diseaseGrowth", "diseaseAffected", "diseaseSymptoms"].forEach(id => {
+      const f = document.getElementById(id);
+      if (f) f.value = "";
+    });
+    loadMyDiseaseReports();
+  } catch (e) {
+    const detail = e?.data
+      ? Object.entries(e.data).map(([k, v]) => `${k}: ${Array.isArray(v) ? v.join(", ") : v}`).join(" | ")
+      : e.message;
+    out.innerHTML = `<p class="muted">Could not save the report — ${escapeHtml(detail)}</p>`;
+  } finally {
+    btn.disabled = false;
+  }
 }
 
 /* =============================================================
@@ -397,19 +516,28 @@ async function loadEvents() {
   const el = document.getElementById("eventsArea");
   el.innerHTML = `<p class="muted">Loading…</p>`;
   try {
-    const res = await window.API.events();
-    const list = (res.results || res || []).filter(e =>
-      e.event_type !== "subsidy"
-    );
-    el.innerHTML = list.length ? list.map(e => `
+    const res = await window.API.events.all();
+    const list = (res.results || res || []).filter(e => e.event_type !== "subsidy");
+    const upcoming = list.filter(e => {
+      const when = new Date(e.end_date || e.start_date);
+      return !isNaN(when) && when >= new Date();
+    });
+    const shown = (upcoming.length ? upcoming : list).slice(0, 6);
+    el.innerHTML = shown.length ? shown.map(e => `
       <div class="card">
-        <span class="badge">${escapeHtml(e.event_type)}</span>
+        <span class="badge">${escapeHtml(e.event_type_display || e.event_type)}</span>
+        ${e.scope === "global" ? `<span class="badge" style="margin-left:.25rem;">🌍 Global</span>` : ""}
+        ${e.cost === "free" ? `<span class="badge" style="margin-left:.25rem;">Free</span>` : ""}
         <h3 style="margin-top:.5rem;">${escapeHtml(e.title)}</h3>
+        ${e.host ? `<p class="muted" style="margin:0;">🏛️ ${escapeHtml(e.host)}</p>` : ""}
         <p>${escapeHtml(e.description || "")}</p>
-        <p class="muted">📍 ${escapeHtml(e.location || "—")}</p>
+        <p class="muted">📍 ${escapeHtml(e.location || "Online")}</p>
         <p class="muted">📅 ${new Date(e.start_date).toLocaleString()}</p>
+        <p class="muted">${escapeHtml(e.join_mode_display || "Details from host")}</p>
+        <a class="btn-primary" style="margin-top:.5rem;"
+           href="events.html?event=${encodeURIComponent(e.id)}">Register / Join</a>
       </div>`).join("")
-      : `<p class="muted">No events published yet.</p>`;
+      : `<p class="muted">No events published yet. <a href="events.html">Browse global &amp; local events</a>.</p>`;
   } catch (e) {
     el.innerHTML = `<p class="muted">Unable to load (${e.message}).</p>`;
   }
@@ -422,7 +550,7 @@ async function loadSubsidy() {
   const el = document.getElementById("subsidyArea");
   el.innerHTML = `<p class="muted">Loading…</p>`;
   try {
-    const res = await window.API.events("subsidy");
+    const res = await window.API.events.list("event_type=subsidy");
     const list = res.results || res || [];
     el.innerHTML = list.length ? list.map(e => `
       <div class="card">

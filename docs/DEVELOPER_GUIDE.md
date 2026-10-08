@@ -1,6 +1,6 @@
 # FarmKonnect Developer Guide
 
-FarmKonnect is a React and Django REST Framework portal for agricultural information and services. It brings county and commodity market prices, agricultural events and grants, post-harvest advisory requests, and a marketplace data model into one application for farmers and agricultural extension teams.
+FarmKonnect is a Django REST Framework portal with HTML, CSS, and vanilla JavaScript pages for agricultural information and services. It brings county and commodity market prices, agricultural events and grants, post-harvest advisory requests, and a marketplace data model into one application for farmers and agricultural extension teams.
 
 This guide documents the repository as it exists today. It does not describe planned features or infrastructure that is not present in the codebase.
 
@@ -11,7 +11,7 @@ This guide documents the repository as it exists today. It does not describe pla
 ```text
 Browser
   |
-  | React 18 UI, Axios requests
+  | HTML/CSS/JavaScript UI
   v
 http://localhost:8000/api/
   |
@@ -24,19 +24,18 @@ SQLite database + Django models
   +-- marketplace and device-token data
 ```
 
-The frontend is a Create React App application in `frontend/`. Its Axios client is configured in `frontend/src/api.js` with the base URL `http://localhost:8000/api/` and `withCredentials: true`.
+The frontend consists of Django-served HTML pages in `frontend/`, with CSS in `frontend/css/` and browser JavaScript in `frontend/js/`. API requests are made by the page scripts to `http://localhost:8000/api/`.
 
 The backend is a Django project in `backend/`. API routes are mounted below `/api/` with a Django REST Framework router. The local database configuration uses SQLite at `backend/db.sqlite3`.
 
-There is no Docker configuration, CI workflow, Render configuration, Vercel configuration, or other deployment definition in this repository. There is also no frontend Tailwind configuration; the implemented UI uses React and Material UI (`@mui/material`) with Emotion styling.
+There is no Docker configuration, CI workflow, Render configuration, Vercel configuration, or other deployment definition in this repository.
 
 ### Implemented frontend areas
 
-- **Welcome page:** the root route displays the FarmKonnect portal greeting.
-- **Market Prices:** `/prices` calls `GET /api/prices/trend/` with commodity, county, and day-count query parameters.
-- **Officers:** `/officers` renders the officer connection screen.
-- **Events & Grants:** `/events` renders the event list screen.
-- **Advisory:** `/advisory` creates an advisory request, runs the advisory action, and reads the recommendation.
+- **Welcome page:** the root route displays `frontend/index.html`.
+- **Farmer portal:** `frontend/farmer-portal.html` provides the farmer-facing portal.
+- **Dashboard and POS:** `frontend/dashboard.html` and `frontend/pos.html` provide the authenticated application pages.
+- **Authentication pages:** login, registration, and OTP verification pages are served as standalone HTML files.
 
 ### User roles
 
@@ -56,7 +55,6 @@ All configured DRF endpoints use authentication by default. Most read-only refer
 
 - Windows, macOS, or Linux
 - Python compatible with Django 5.1
-- Node.js and npm
 - Git
 - A local SQLite installation is not required separately because Python includes SQLite support.
 
@@ -70,7 +68,7 @@ celery==5.4.0
 requests==2.32.3
 ```
 
-The frontend declares React 18, Create React App (`react-scripts` 5.0.1), Axios, and Material UI. `frontend/package.json` currently does not declare `react-router-dom`, although `frontend/src/App.js` imports it; install or add that dependency before starting the frontend.
+The frontend has no Node.js dependency installation step. Its HTML, CSS, and vanilla JavaScript assets are served directly by Django.
 
 ### Backend installation
 
@@ -101,34 +99,13 @@ python manage.py runserver 8000
 
 The backend is then available at `http://localhost:8000/`, with the API at `http://localhost:8000/api/` and the admin site at `http://localhost:8000/admin/`.
 
-### Frontend installation
-
-Open a second terminal from the repository root:
-
-```powershell
-cd frontend
-npm install
-npm install react-router-dom
-npm start
-```
-
-The frontend starts at `http://localhost:3000/` and sends API requests to the backend URL hard-coded in `frontend/src/api.js`.
-
-Useful frontend commands are:
-
-```powershell
-npm test
-npm run build
-```
-
 ### Current setup blockers
 
 The repository needs these code corrections before a clean first run:
 
-1. `frontend/src/App.js` imports `react-router-dom`, but `frontend/package.json` does not list it.
-2. `backend/farmkonnect/urls.py` registers `ProductViewSet`, `ListingViewSet`, `OrderViewSet`, and `DeviceTokenViewSet` without importing them from `backend.views`.
-3. The repository has no committed Django migration files. Run `makemigrations` after the backend imports are corrected.
-4. Authentication endpoints are not implemented in the current router. A user must therefore be created through Django admin, the Django shell, or another existing provisioning process before authenticated API calls can be made.
+1. `backend/farmkonnect/urls.py` registers `ProductViewSet`, `ListingViewSet`, `OrderViewSet`, and `DeviceTokenViewSet` without importing them from `backend.views`.
+2. The repository has no committed Django migration files. Run `makemigrations` after the backend imports are corrected.
+3. Authentication endpoints are not implemented in the current router. A user must therefore be created through Django admin, the Django shell, or another existing provisioning process before authenticated API calls can be made.
 
 These are repository facts, not additional features to implement as part of this documentation.
 
@@ -258,7 +235,6 @@ The view assigns the authenticated user as `farmer`. A successful response inclu
 ```http
 POST /api/advisories/1/run/
 ```
-
 Successful processing returns:
 
 ```json
@@ -302,6 +278,74 @@ advisories/{id}/run/
 ```
 
 The standard DRF list, detail, create, update, and delete actions are only available where the corresponding viewset is a `ModelViewSet`; users, counties, commodities, prices, and events are read-only viewsets.
+
+### Crop and disease photo uploads
+
+Farmers photograph crops and diseased plants from a phone, so the crop and
+disease endpoints accept `multipart/form-data` as well as JSON. Uploaded files
+are stored under `MEDIA_ROOT` (`backend/media/`) and served from `/media/`.
+
+| Endpoint | Purpose |
+| --- | --- |
+| `POST /api/crops/` | Crop record with one optional `image` file, or a `photo_url` link. |
+| `POST /api/diseases/` | Disease report with a main `image` plus any extra angles as repeated `images` fields. |
+| `POST /api/diseases/{id}/add_photos/` | Attach up to 5 further angles to an existing report. |
+| `DELETE /api/diseases/{id}/photos/{photo_id}/` | Remove one extra photo. |
+| `POST /api/diseases/{id}/analyse/` | Flag a report as awaiting a diagnosis. |
+| `GET /api/diseases/pending/` | Reports with no diagnosis yet (officer/analyst view). |
+| `GET /api/disease-photos/` | Extra photos across the farmer's reports. |
+
+Uploading a report with several photos in one request:
+
+```http
+POST /api/diseases/
+Content-Type: multipart/form-data; boundary=...
+Authorization: Token <token>
+
+date=2026-10-08
+crop=Maize
+variety=SC651
+growth_stage=flowering
+symptoms=yellow spots on lower leaves
+affected_area=about a quarter of the field
+photo_stage=leaf
+needs_analysis=true
+image=@main.jpg
+images=@whole-plant.jpg
+images=@field.jpg
+```
+
+The first `image` becomes the report's main photo; the repeated `images` fields
+become `DiseasePhoto` rows. `photo_stage` and `caption` are positional and match
+the order of the extra files. Responses include ready-to-use URLs so the
+frontend never has to build them:
+
+```json
+{
+  "id": 7,
+  "image_src": "http://127.0.0.1:8000/media/diseases/2026/10/main.jpg",
+  "photos": [
+    {"id": 16, "image_src": "http://127.0.0.1:8000/media/diseases/2026/10/whole-plant.jpg",
+     "photo_stage": "whole_plant"}
+  ],
+  "photo_count": 3
+}
+```
+
+Validation rules:
+
+- Photos must be JPEG, PNG or WebP and no larger than **6 MB** each; a report
+  holds one main photo plus at most **5** extra angles.
+- A report with `needs_analysis=true` must include at least one photo, so nothing
+  can be queued for review without evidence.
+- `photo_url` still works for externally hosted images and passes through
+  unchanged, alongside the uploaded-file path.
+
+The browser resizes large phone photos to roughly 3 MB before upload
+(`frontend/js/image-picker.js`), which matters on slow rural connections; the
+6 MB server limit is the backstop. In production, serve `MEDIA_ROOT` from the web
+server or object storage rather than Django, and set the storage backend in
+`settings.py` if uploads should go to S3-compatible storage.
 
 ## 5. Database Schema Overview
 
@@ -363,15 +407,9 @@ The repository currently has `master` checked out locally while the GitHub repos
 
 ### Frontend practices
 
-- Keep API access in the shared Axios client or a nearby feature component.
-- Preserve the existing React 18 and Material UI patterns unless a deliberate UI migration is approved.
-- Use the existing route structure and handle API errors through the response `detail` value where available.
-- Run the production build before submitting changes:
-
-```powershell
-cd frontend
-npm run build
-```
+- Keep API access in the relevant page script under `frontend/js/`.
+- Preserve the existing HTML and CSS structure when updating the standalone pages.
+- Handle API errors visibly in the page UI where possible.
 
 ### Validation checklist
 

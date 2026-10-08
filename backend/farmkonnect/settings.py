@@ -3,6 +3,7 @@
 import os
 from pathlib import Path
 from dotenv import load_dotenv
+import dj_database_url
 
 load_dotenv()
 
@@ -11,7 +12,7 @@ FRONTEND_DIR = BASE_DIR.parent / "frontend"
 
 SECRET_KEY = os.getenv("DJANGO_SECRET_KEY", "django-insecure-CHANGE_ME")
 DEBUG = os.getenv("DJANGO_DEBUG", "True") == "True"
-ALLOWED_HOSTS = ["127.0.0.1", "localhost"]
+ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', '127.0.0.1,localhost').split(',')
 
 # ------------------------------------------------------------------
 # Apps
@@ -38,6 +39,7 @@ INSTALLED_APPS = [
 MIDDLEWARE = [
     "corsheaders.middleware.CorsMiddleware",
     "django.middleware.security.SecurityMiddleware",
+    "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
@@ -75,10 +77,7 @@ AUTH_USER_MODEL = "backend.User"
 # Database
 # ------------------------------------------------------------------
 DATABASES = {
-    "default": {
-        "ENGINE": "django.db.backends.sqlite3",
-        "NAME": BASE_DIR / "db.sqlite3",
-    }
+    "default": dj_database_url.config(default=f"sqlite:///{BASE_DIR / 'db.sqlite3'}")
 }
 
 # ------------------------------------------------------------------
@@ -87,6 +86,16 @@ DATABASES = {
 STATIC_URL = "static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
 STATICFILES_DIRS = [FRONTEND_DIR]
+
+# ------------------------------------------------------------------
+# Media files — farmer-uploaded crop and disease photos
+# ------------------------------------------------------------------
+MEDIA_URL = "/media/"
+MEDIA_ROOT = BASE_DIR / "media"
+
+# Reject absurdly large phone uploads instead of buffering them into memory.
+DATA_UPLOAD_MAX_MEMORY_SIZE = 12 * 1024 * 1024   # 12 MB
+FILE_UPLOAD_MAX_MEMORY_SIZE = 5 * 1024 * 1024    # larger files stream to disk
 
 # ------------------------------------------------------------------
 # Passwords

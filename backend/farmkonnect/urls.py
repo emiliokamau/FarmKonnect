@@ -2,6 +2,7 @@ from django.contrib import admin
 from django.urls import path, include
 from django.views.generic import TemplateView
 from django.conf import settings
+from django.conf.urls.static import static
 from django.views.static import serve as static_serve
 
 FRONTEND_DIR = settings.FRONTEND_DIR
@@ -20,6 +21,7 @@ urlpatterns = [
     path("dashboard.html", TemplateView.as_view(template_name="dashboard.html")),
     path("pos.html", TemplateView.as_view(template_name="pos.html")),
     path("farmer-portal.html", TemplateView.as_view(template_name="farmer-portal.html")),
+    path("events.html", TemplateView.as_view(template_name="events.html"), name="events"),
     path("farmer-profile.html", TemplateView.as_view(template_name="farmer-profile.html")),
 
     # --- Frontend assets ---
@@ -27,3 +29,7 @@ urlpatterns = [
     path("js/<path:path>", static_serve, {"document_root": FRONTEND_DIR / "js"}),
     path("favicon.ico", static_serve, {"document_root": FRONTEND_DIR, "path": "favicon.ico"}),
 ]
+
+# Farmer-uploaded crop/disease photos. In production these are served by the
+# web server or object storage instead; serving here keeps local dev working.
+urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

@@ -8,7 +8,17 @@ local_settings.py
 .env
 # Virtual env
 venv/
+.venv/
+.venv-fk/
 .env*
+# Dependencies (must never be committed — hundreds of MB)
+node_modules/
+# Database backups
+*.sqlite3.bak-*
+# Nested working copy of the AI agent project (has its own repo)
+Farmkonnect-agent/
+# Python bytecode
+*.pyc
 # IDE
 *.idea/
 *.vscode/

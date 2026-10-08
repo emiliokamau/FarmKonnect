@@ -2,7 +2,7 @@
  * FarmKonnect API client
  */
 
-const API_BASE = "/api";
+const API_BASE = window.RENDER_EXTERNAL_URL ? `${window.RENDER_EXTERNAL_URL}/api` : "/api";
 const TOKEN_KEY = "fk_token";
 const USER_KEY  = "fk_user";
 
@@ -70,7 +70,22 @@ const API = {
   commodities:    ()  => apiFetch("/commodities/", { auth: false }),
   prices:         (p = "") => apiFetch(`/prices/${p}`, { auth: false }),
   priceTrends:    (cid) => apiFetch(`/prices/trends/${cid ? `?commodity=${cid}` : ""}`, { auth: false }),
-  events:         (type) => apiFetch(`/events/${type ? `?event_type=${type}` : ""}`, { auth: false }),
+  // Global & Local Events — search/filter, summary counts, attendance details
+  events: {
+    all:       ()                => apiFetch("/events/?window=all", { auth: false }),
+    list:      (query = "")      => apiFetch(`/events/${query ? `?${query}` : ""}`, { auth: false }),
+    summary:   ()                => apiFetch("/events/summary/", { auth: false }),
+    detail:    (id)              => apiFetch(`/events/${id}/`, { auth: false }),
+    join:      (id, payload = {}) => apiFetch(`/events/${id}/join/`, {
+                                      method: "POST", body: payload, auth: isLoggedIn(),
+                                    }),
+    joinInfo:  (id)              => apiFetch(`/events/${id}/join/`, { auth: isLoggedIn() }),
+    register:  (payload)         => apiFetch("/event-registrations/", { method: "POST", body: payload, auth: isLoggedIn() }),
+    registrations: ()            => apiFetch("/event-registrations/"),
+    cancel:    (id, reference)   => apiFetch(`/event-registrations/${id}/cancel/`, {
+                                      method: "POST", body: { reference }, auth: isLoggedIn(),
+                                    }),
+  },
 
   // advisories
   advisories:     ()  => apiFetch("/advisories/"),
@@ -103,6 +118,19 @@ const API = {
   weather:    crud("/weather/"),
   visits:     crud("/visits/"),
   finance:    crud("/finance/"),
+
+  // ---- Crop & plant photos (multipart uploads) ----
+  diseasePhotos: {
+    list:   (reportId) => apiFetch(`/disease-photos/${reportId ? `?report=${reportId}` : ""}`),
+    add:    (data)     => apiFetch("/disease-photos/", { method: "POST", body: data }),
+    remove: (id)       => apiFetch(`/disease-photos/${id}/`, { method: "DELETE" }),
+  },
+  /** Attach extra angles to an existing report: files under `images`. */
+  addDiseasePhotos: (reportId, formData) =>
+    apiFetch(`/diseases/${reportId}/add_photos/`, { method: "POST", body: formData }),
+  /** Queue a report for disease analysis. */
+  analyseDisease:   (reportId) => apiFetch(`/diseases/${reportId}/analyse/`, { method: "POST" }),
+  pendingDiseases:  ()         => apiFetch("/diseases/pending/"),
 };
 
 window.getToken   = getToken;

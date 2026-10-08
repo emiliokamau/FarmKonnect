@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Global & Local Events · FarmKonnect</title>
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/events.css">
+</head>
+<body data-page="events">
+
+  <nav class="navbar ev-navbar">
+    <a href="index.html" class="logo">🌾 FarmKonnect</a>
+    <div class="nav-links">
+      <a href="farmer-portal.html">Farmer Portal</a>
+      <a href="dashboard.html">Dashboard</a>
+      <span id="evAuthSlot"></span>
+    </div>
+  </nav>
+
+  <header class="ev-header">
+    <div class="ev-header-inner">
+      <h1>Global &amp; Local Events</h1>
+      <p>
+        Trainings, webinars, conferences and expos for farmers — worldwide and near you.
+        Join online by Google Meet, Zoom, WhatsApp or livestream, or register for a place
+        at a venue. Hosts publish the access details, so the Join button always takes you
+        straight to the right room.
+      </p>
+      <div class="ev-counts" id="evSummary">
+        <span class="ev-chip">Loading…</span>
+      </div>
+    </div>
+  </header>
+
+  <main class="ev-main">
+    <p class="ev-demo-note" id="evDemoNote" hidden></p>
+
+    <!-- ============ SEARCH & FILTERS ============ -->
+    <section class="ev-toolbar">
+      <div class="ev-search">
+        <span class="ev-search-icon">🔍</span>
+        <input
+          id="evSearch"
+          type="search"
+          placeholder="Search events, hosts, crops, places…"
+          autocomplete="off"
+          aria-label="Search events">
+        <button id="evSearchClear" class="ev-search-clear" type="button" title="Clear search">×</button>
+      </div>
+
+      <div class="ev-scope-toggle" role="group" aria-label="Event reach">
+        <button class="active" data-scope="">All events</button>
+        <button data-scope="global">🌍 Global</button>
+        <button data-scope="local">📍 Local</button>
+      </div>
+
+      <div class="ev-filters">
+        <label>Type
+          <select id="evType">
+            <option value="">All types</option>
+            <option value="training">Training / Workshop</option>
+            <option value="webinar">Webinar</option>
+            <option value="conference">Conference / Summit</option>
+            <option value="expo">Exhibition / Expo</option>
+            <option value="field_day">Field Day / Demo</option>
+            <option value="grant">Grant / Funding Call</option>
+          </select>
+        </label>
+        <label>How to join
+          <select id="evJoinMode">
+            <option value="">Any way</option>
+            <option value="google_meet">Google Meet</option>
+            <option value="zoom">Zoom</option>
+            <option value="teams">Microsoft Teams</option>
+            <option value="whatsapp">WhatsApp Group</option>
+            <option value="livestream">Livestream / YouTube</option>
+            <option value="website">Host website</option>
+            <option value="in_person">In person</option>
+            <option value="phone">Phone / Dial-in</option>
+          </select>
+        </label>
+        <label>Cost
+          <select id="evCost">
+            <option value="">Any cost</option>
+            <option value="free">Free only</option>
+          </select>
+        </label>
+        <label class="ev-check">
+          <input type="checkbox" id="evOnline"> Online only
+        </label>
+        <label class="ev-check">
+          <input type="checkbox" id="evPast"> Include past events
+        </label>
+        <button id="evReset" class="btn-outline ev-reset" type="button">Reset</button>
+      </div>
+    </section>
+
+    <div class="ev-result-bar">
+      <span id="evResultCount" class="muted"></span>
+      <span id="evActiveFilters" class="ev-active-filters"></span>
+    </div>
+
+    <!-- ============ EVENT GRID ============ -->
+    <section id="evGrid" class="ev-grid" aria-live="polite">
+      <p class="muted">Loading events…</p>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <p>FarmKonnect — agricultural information and services for farmers, traders and extension teams.</p>
+    <p class="muted">Event details are published by the hosts. Always confirm dates on the official event page.</p>
+  </footer>
+
+  <!-- ============ REGISTER MODAL ============ -->
+  <div class="ev-modal-backdrop" id="evModal" hidden>
+    <div class="ev-modal" role="dialog" aria-modal="true" aria-labelledby="evModalTitle">
+      <button class="ev-modal-close" id="evModalClose" type="button" aria-label="Close">×</button>
+
+      <div id="evModalForm">
+        <h2 id="evModalTitle">Register for this event</h2>
+        <p class="muted" id="evModalSubtitle"></p>
+        <form id="evRegisterForm" class="form">
+          <input type="hidden" id="evEventId">
+          <label>Full name
+            <input name="full_name" id="evName" required autocomplete="name" placeholder="e.g. Amina Ibrahim">
+          </label>
+          <label>Phone number
+            <input name="phone" id="evPhone" required inputmode="tel" autocomplete="tel" placeholder="e.g. 0803 000 0000">
+          </label>
+          <div class="ev-form-row">
+            <label>State / County (optional)
+              <input name="county" id="evCounty" placeholder="e.g. Kaduna">
+            </label>
+            <label>Email (optional)
+              <input name="email" id="evEmail" type="email" autocomplete="email" placeholder="you@example.com">
+            </label>
+          </div>
+          <label>Farm / organisation (optional)
+            <input name="organisation" id="evOrg" placeholder="e.g. Ilorin Maize Cooperative">
+          </label>
+          <label class="ev-check">
+            <input type="checkbox" id="evReminder" checked> Send me a reminder before the event
+          </label>
+          <button class="btn-primary" type="submit" id="evSubmitBtn">Confirm registration</button>
+          <p id="evFormMsg" class="form-msg"></p>
+        </form>
+      </div>
+
+      <div id="evModalSuccess" hidden>
+        <div class="ev-success-icon">✅</div>
+        <h2>You're registered!</h2>
+        <p class="muted" id="evSuccessFor"></p>
+
+        <div class="ev-reference-box">
+          <span class="muted">Your booking reference</span>
+          <strong id="evReference">—</strong>
+        </div>
+
+        <div id="evAccessBox"></div>
+
+        <div class="ev-modal-actions">
+          <a id="evJoinNow" class="btn-primary" href="#" target="_blank" rel="noopener">Join now</a>
+          <button class="btn-outline" id="evCopyDetails" type="button">Copy details</button>
+          <button class="btn-outline" id="evDone" type="button">Done</button>
+        </div>
+        <p class="muted ev-small" id="evSuccessNote"></p>
+      </div>
+    </div>
+  </div>
+
+  <script src="js/api.js"></script>
+  <script src="js/events.js"></script>
+</body>
+</html>

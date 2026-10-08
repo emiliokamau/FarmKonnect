@@ -31,6 +31,7 @@ const FMS_MODULES = {
   crops: {
     title: "Crop Records", endpoint: "crops",
     columns: [
+      { key: "photo", label: "Photo", type: "thumb" },
       { key: "crop", label: "Crop" },
       { key: "variety", label: "Variety" },
       { key: "planting_date", label: "Planted" },
@@ -47,6 +48,9 @@ const FMS_MODULES = {
       { key: "area_unit", label: "Unit", default: "acres" },
       { key: "seed_source", label: "Seed Source" },
       { key: "notes", label: "Notes", type: "textarea" },
+      { key: "image", label: "Crop / field photo", type: "image", multiple: false,
+        help: "A photo of the crop or the field helps officers advise you. Taken in daylight, close enough to see the leaves." },
+      { key: "photo_url", label: "…or paste an image link", type: "url" },
     ],
   },
   plantings: {
@@ -94,6 +98,7 @@ const FMS_MODULES = {
   diseases: {
     title: "Disease & Pest Reports", endpoint: "diseases",
     columns: [
+      { key: "photo", label: "Photo", type: "thumb" },
       { key: "date", label: "Date" },
       { key: "crop", label: "Crop" },
       { key: "diagnosis", label: "Diagnosis" },
@@ -104,9 +109,16 @@ const FMS_MODULES = {
       { key: "farm", label: "Farm", type: "farm_select" },
       { key: "date", label: "Date", type: "date", required: true },
       { key: "crop", label: "Crop", required: true },
-      { key: "symptoms", label: "Symptoms", type: "textarea" },
-      { key: "photo_url", label: "Photo URL" },
-      { key: "diagnosis", label: "Diagnosis" },
+      { key: "variety", label: "Variety" },
+      { key: "growth_stage", label: "Growth stage", placeholder: "e.g. seedling, flowering" },
+      { key: "symptoms", label: "Symptoms", type: "textarea",
+        placeholder: "What do you see? e.g. yellow spots on lower leaves, wilting in the afternoon" },
+      { key: "affected_area", label: "How much is affected?", placeholder: "e.g. about a quarter of the field" },
+      { key: "image", label: "Photos of the affected plant", type: "image", multiple: true, max: 5,
+        stages: true,
+        help: "Add up to 5 photos from different angles — a close-up of the leaf, the whole plant, and the wider field. This helps get the diagnosis right." },
+      { key: "photo_url", label: "…or paste an image link", type: "url" },
+      { key: "diagnosis", label: "Diagnosis", placeholder: "Leave blank if you want it reviewed" },
       { key: "severity", label: "Severity", type: "select", options: ["low","medium","high"] },
       { key: "treatment", label: "Treatment", type: "textarea" },
       { key: "status", label: "Status", type: "select", options: ["open","treated","resolved"] },
@@ -376,6 +388,14 @@ async function renderModule(name) {
           ${list.map(r => `
             <tr>
               ${cfg.columns.map(c => {
+                if (c.type === "thumb") {
+                  const src = r.image_src || "";
+                  const extra = r.photo_count > 1 ? `<span class="thumb-count">+${r.photo_count - 1}</span>` : "";
+                  return `<td class="thumb-cell">${src
+                    ? `<span class="thumb-wrap"><img src="${src}" alt="photo" loading="lazy"
+                         onerror="this.parentElement.classList.add('thumb-broken')">${extra}</span>`
+                    : `<span class="muted">—</span>`}</td>`;
+                }
                 let v = r[c.key];
                 if (c.type === "bool") v = v ? "Yes" : "No";
                 if (v === null || v === undefined) v = "";
@@ -444,7 +464,19 @@ function openForm(name, record) {
   const form = document.createElement("form");
   form.className = "form";
 
+  // Image fields are built by the shared ImagePicker instead of as plain inputs.
+  const pickers = {};
+  const mountedPickers = [];
+
   cfg.fields.forEach(f => {
+    if (f.type === "image") {
+      const wrap = document.createElement("div");
+      wrap.className = "form-image-field";
+      form.appendChild(wrap);
+      mountedPickers.push({ field: f, wrap });
+      return;
+    }
+
     const label = document.createElement("label");
     label.textContent = f.label;
 
@@ -480,6 +512,7 @@ function openForm(name, record) {
       input = document.createElement("input");
       input.type = f.type === "number" ? "number" : f.type === "date" ? "date" : "text";
       if (f.type === "number") input.step = "any";
+      if (f.placeholder) input.placeholder = f.placeholder;
     }
 
     input.name = f.key;
@@ -509,23 +542,63 @@ function openForm(name, record) {
   backdrop.appendChild(modal);
   document.body.appendChild(backdrop);
 
+  // Image pickers need to be in the document before they can measure/show previews.
+  mountedPickers.forEach(({ field, wrap }) => {
+    const existing = record && record.image_src
+      ? [{ src: record.image_src, caption: "", stage: record.photo_stage || "" }]
+      : [];
+    pickers[field.key] = window.ImagePicker.mount(wrap, {
+      label: field.label,
+      help: field.help,
+      multiple: field.multiple !== false,
+      max: field.max || (field.multiple === false ? 1 : 5),
+      stages: field.stages ? window.ImagePicker.DISEASE_STAGES : [],
+      value: existing,
+    });
+  });
+
   form.querySelector("#cancelBtn").addEventListener("click", () => backdrop.remove());
 
   form.addEventListener("submit", async (e) => {
     e.preventDefault();
-    const data = {};
-    cfg.fields.forEach(f => {
-      const el = form.elements[f.key];
-      if (!el) return;
-      let v;
-      if (f.type === "bool") v = el.checked;
-      else v = el.value === "" ? null : el.value;
-      data[f.key] = v;
-    });
+
+    // Any chosen photo means we must submit multipart instead of JSON.
+    const withImages = Object.values(pickers).some(p => p.hasFiles());
+    const recordId = record && record.id;
 
     try {
-      if (isEdit) await window.API[cfg.endpoint].update(record.id, data);
-      else        await window.API[cfg.endpoint].create(data);
+      if (withImages) {
+        const fd = new FormData();
+        cfg.fields.forEach(f => {
+          if (f.type === "image") return;
+          const el = form.elements[f.key];
+          if (!el) return;
+          const v = f.type === "bool" ? el.checked : el.value;
+          // Multipart sends empty strings as ""; blank optional values are cleared.
+          fd.append(f.key, v === null || v === undefined ? "" : v);
+        });
+        Object.entries(pickers).forEach(([key, picker]) => {
+          picker.appendTo(fd, key, "images");
+        });
+
+        if (recordId) await window.API[cfg.endpoint].update(recordId, fd);
+        else          await window.API[cfg.endpoint].create(fd);
+      } else {
+        const data = {};
+        cfg.fields.forEach(f => {
+          if (f.type === "image") return;
+          const el = form.elements[f.key];
+          if (!el) return;
+          let v;
+          if (f.type === "bool") v = el.checked;
+          else v = el.value === "" ? null : el.value;
+          data[f.key] = v;
+        });
+
+        if (recordId) await window.API[cfg.endpoint].update(recordId, data);
+        else          await window.API[cfg.endpoint].create(data);
+      }
+
       backdrop.remove();
       renderModule(name);
     } catch (err) {

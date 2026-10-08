@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Farmer Portal · FarmKonnect</title>
   <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/images.css">
 </head>
 <body data-page="farmer">
   <div class="app-shell">
@@ -29,6 +30,7 @@
           <div class="nav-group-items">
             <a href="dashboard.html">Back to Dashboard</a>
             <a href="pos.html">Point of Sale</a>
+            <a href="events.html">🌍 Global &amp; Local Events</a>
           </div>
         </div>
         <div class="nav-group">
@@ -77,19 +79,49 @@
 
       <!-- ============ DISEASE DETECTION ============ -->
       <section id="tab-disease" class="content-section">
-        <div class="card" style="max-width:640px;">
+        <div class="card" style="max-width:760px;">
           <h3>Disease Detection</h3>
-          <p class="muted">Upload a photo of the affected plant. Our AI will suggest a likely diagnosis and treatment.</p>
-          <input type="file" id="diseaseFile" accept="image/*">
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-top:1rem;">
-            <label>Crop<input id="diseaseCrop" placeholder="e.g. Maize"></label>
+          <p class="muted">
+            Photograph the affected plant and we will help work out what is wrong.
+            Add a close-up of the leaf plus the whole plant if you can — it makes the
+            diagnosis far more accurate.
+          </p>
+
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:1rem;margin-top:1rem;">
+            <label>Crop
+              <input id="diseaseCrop" placeholder="e.g. Maize" autocomplete="off">
+            </label>
+            <label>Variety (optional)
+              <input id="diseaseVariety" placeholder="e.g. SC651" autocomplete="off">
+            </label>
+            <label>Growth stage (optional)
+              <input id="diseaseGrowth" placeholder="e.g. flowering">
+            </label>
             <label>Farm (optional)
               <select id="diseaseFarm"><option value="">—</option></select>
             </label>
+            <label>How much is affected? (optional)
+              <input id="diseaseAffected" placeholder="e.g. about a quarter of the field">
+            </label>
           </div>
-          <button class="btn-primary" id="analyzeDiseaseBtn" style="margin-top:1rem;">Analyze</button>
+
+          <label style="display:block;margin-top:1rem;">What do you see? (optional)
+            <textarea id="diseaseSymptoms" rows="3"
+              placeholder="e.g. yellow spots on the lower leaves, edges drying, some wilting in the afternoon"></textarea>
+          </label>
+
+          <!-- photos: camera capture, gallery, drag & drop, previews -->
+          <div id="diseaseImagePicker" style="margin-top:1.25rem;"></div>
+
+          <label style="display:flex;align-items:center;gap:.5rem;margin-top:1rem;font-weight:500;">
+            <input type="checkbox" id="diseaseRequestAnalysis" checked style="width:1rem;height:1rem;accent-color:var(--green);">
+            Ask an officer or the diagnosis service to review these photos
+          </label>
+
+          <button class="btn-primary" id="analyzeDiseaseBtn" style="margin-top:1rem;">Submit for diagnosis</button>
           <div id="diseaseResult" style="margin-top:1rem;"></div>
         </div>
+
         <div class="card" style="margin-top:1.5rem;">
           <h3>My Recent Reports</h3>
           <div id="myDiseaseReports"><p class="muted">Loading…</p></div>
@@ -110,7 +142,17 @@
 
       <!-- ============ EVENTS ============ -->
       <section id="tab-events" class="content-section">
-        <p class="muted">Training sessions, grants, and upcoming agricultural events.</p>
+        <div class="card mb-1" style="display:flex;justify-content:space-between;align-items:center;gap:1rem;flex-wrap:wrap;">
+          <div>
+            <h3 style="margin-bottom:.25rem;">Global &amp; Local Events</h3>
+            <p class="muted" style="margin:0;">
+              Search trainings, webinars, conferences and expos worldwide and near you —
+              then join by Google Meet, Zoom, WhatsApp or at a venue.
+            </p>
+          </div>
+          <a class="btn-primary" href="events.html">Open events page</a>
+        </div>
+        <p class="muted">Upcoming highlights:</p>
         <div id="eventsArea" class="grid"><p class="muted">Loading…</p></div>
       </section>
 
@@ -140,6 +182,7 @@
   </div>
 
   <script src="js/api.js"></script>
+  <script src="js/image-picker.js"></script>
   <script src="js/farmer-portal.js"></script>
 </body>
 </html>

@@ -1,6 +1,6 @@
 # FarmKonnect
 
-FarmKonnect is an agricultural information and services portal built with Django REST Framework and React. It provides market-price views, agricultural events and grants, post-harvest advisory requests, and marketplace data models for farmers and extension teams.
+FarmKonnect is an agricultural information and services portal built with Django REST Framework and HTML, CSS, and vanilla JavaScript. It provides market-price views, agricultural events and grants, post-harvest advisory requests, and marketplace data models for farmers and extension teams.
 
 ## Documentation
 
@@ -17,7 +17,7 @@ Read the complete developer guide in [docs/DEVELOPER_GUIDE.md](docs/DEVELOPER_GU
 
 ```text
 backend/   Django project, models, serializers, viewsets, services, and tests
-frontend/  React application and Material UI components
+frontend/  Django-served HTML pages, CSS, and vanilla JavaScript
 docs/      Developer documentation
 ```
 
