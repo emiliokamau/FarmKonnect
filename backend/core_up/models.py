@@ -13,12 +13,19 @@ MAX_REPORT_PHOTOS = 5
 
 
 class User(AbstractUser):
-    """Custom user with phone-based OTP login."""
+    """Custom user with phone-based OTP login and role handling."""
     phone = models.CharField(max_length=20, unique=True, null=True, blank=True)
     is_phone_verified = models.BooleanField(default=False)
     otp_code = models.CharField(max_length=6, blank=True, null=True)
     otp_created_at = models.DateTimeField(null=True, blank=True)
     profile_completed = models.BooleanField(default=False)
+    ROLE_CHOICES = [
+        ("FARMER", "Farmer"),
+        ("OFFICER", "Extension Officer"),
+        ("COMPANY", "Company / Buyer"),
+        ("ADMIN", "Administrator"),
+    ]
+    role = models.CharField(max_length=20, choices=ROLE_CHOICES, default="FARMER")
 
     USERNAME_FIELD = "username"
     REQUIRED_FIELDS = ["email", "phone"]
