@@ -335,6 +335,17 @@ class FarmInputSerializer(serializers.ModelSerializer):
         model = FarmInput
         fields = "__all__"
 
+    def validate_farm(self, farm):
+        """Keep farmer-created inputs attached to one of their own farms."""
+        request = self.context.get("request")
+        user = getattr(request, "user", None)
+        if user and user.is_authenticated and not user.is_staff:
+            if farm.farmer.user_id != user.id:
+                raise serializers.ValidationError(
+                    "Select one of your own farms for this input."
+                )
+        return farm
+
 
 class DiseasePhotoSerializer(serializers.ModelSerializer):
     image_src = serializers.SerializerMethodField()

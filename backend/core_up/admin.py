@@ -75,8 +75,24 @@ class PlantingActivityAdmin(admin.ModelAdmin):
 
 @admin.register(FarmInput)
 class FarmInputAdmin(admin.ModelAdmin):
-    list_display = ("name", "input_type", "farm", "quantity", "cost", "application_date")
+    list_display = ("name", "input_type", "farm", "farmer", "quantity", "cost", "application_date")
     list_filter = ("input_type",)
+    search_fields = (
+        "name",
+        "crop",
+        "farm__name",
+        "farm__farmer__farmer_id",
+        "farm__farmer__full_name",
+        "farm__farmer__user__username",
+        "farm__farmer__user__email",
+        "farm__farmer__user__phone",
+    )
+    list_select_related = ("farm", "farm__farmer", "farm__farmer__user")
+
+    @admin.display(description="Farmer", ordering="farm__farmer__full_name")
+    def farmer(self, obj):
+        profile = obj.farm.farmer
+        return f"{profile.full_name} ({profile.farmer_id})"
 
 
 class DiseasePhotoInline(admin.TabularInline):
@@ -150,7 +166,32 @@ class WeatherLogAdmin(admin.ModelAdmin):
 
 @admin.register(ExtensionVisit)
 class ExtensionVisitAdmin(admin.ModelAdmin):
-    list_display = ("date", "officer", "farmer", "follow_up_date")
+    list_display = ("date", "officer", "farmer_name", "follow_up_date")
+    list_filter = ("follow_up_date",)
+    search_fields = (
+        "officer",
+        "recommendations",
+        "farmer__farmer_id",
+        "farmer__full_name",
+        "farmer__user__username",
+        "farmer__user__email",
+        "farmer__user__phone",
+    )
+    list_select_related = ("farmer", "farmer__user")
+
+    def get_form(self, request, obj=None, **kwargs):
+        form = super().get_form(request, obj, **kwargs)
+        form.base_fields["farmer"].required = True
+        form.base_fields["farmer"].help_text = (
+            "Required: the assigned farmer receives this visit in Extension Visits."
+        )
+        return form
+
+    @admin.display(description="Farmer", ordering="farmer__full_name")
+    def farmer_name(self, obj):
+        if obj.farmer is None:
+            return "Unassigned"
+        return f"{obj.farmer.full_name} ({obj.farmer.farmer_id})"
 
 
 @admin.register(FarmFinance)
