@@ -14,11 +14,6 @@ urlpatterns = [
     path("api/", include("core_up.urls")),
 
     path('officer/', include('officer.urls')),
-    path('company/', include('company.urls')),
-    path('weather/', include('weather.urls')),
-    path('advisory/', include('advisory.urls')),
-    path('crop-health/', include('crop_health.urls')),
-    path('market/', include('market.urls')),
     # --- Frontend HTML pages ---
     path("", TemplateView.as_view(template_name="index.html"), name="home"),
     path("index.html", TemplateView.as_view(template_name="index.html")),

@@ -62,10 +62,6 @@ INSTALLED_APPS = [
     "konnect_ai",
     "officer",
     "company",
-    "weather",
-    "advisory",
-    "crop_health",
-    "market",
 ]
 
 # ------------------------------------------------------------------
